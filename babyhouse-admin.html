@@ -1,0 +1,707 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>嬰之房｜寄庫管理後台</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:"Noto Sans TC","PingFang TC","Microsoft JhengHei",sans-serif;background:#FDF8F4;color:#1A1A2E;min-height:100vh}
+:root{
+  --p:#3D7EAA;--pl:#EAF3FA;--a:#F4956A;--al:#FEF0E9;
+  --g:#4CAF82;--gl:#E8F7EF;--u:#7C6FCD;--ul:#EFEDFA;
+  --r:#E05A4E;--rl:#FDECEA;--sub:#6B7280;--bd:#E8E0D8;
+  --card:#fff;--sh:0 2px 12px rgba(61,126,170,0.10);
+}
+header{background:var(--card);border-bottom:1px solid var(--bd);padding:0 14px;display:flex;align-items:center;gap:8px;height:52px;position:sticky;top:0;z-index:100;box-shadow:var(--sh)}
+.hlogo{font-size:20px}.htitle{font-weight:700;font-size:15px;letter-spacing:1px}.hsp{flex:1}
+.nb{background:none;border:none;border-radius:8px;padding:5px 9px;font-size:13px;font-weight:600;cursor:pointer;color:var(--sub);font-family:inherit}
+.nb.on{background:var(--pl);color:var(--p)}
+.badd{background:var(--a);color:#fff;border:none;border-radius:8px;padding:6px 13px;font-weight:700;font-size:13px;cursor:pointer;font-family:inherit}
+main{max-width:720px;margin:0 auto;padding:16px 13px 80px}
+.card{background:var(--card);border-radius:14px;padding:16px;box-shadow:var(--sh);margin-bottom:11px}
+.sg{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-bottom:14px}
+.sb{border-radius:12px;padding:13px;display:flex;align-items:center;gap:11px}
+.sb .ic{font-size:22px}.sb .nm{font-size:22px;font-weight:800}.sb .lb{font-size:11px;color:var(--sub);margin-top:2px}
+.sbl{background:var(--pl)}.sbl .nm{color:var(--p)}
+.sbg{background:var(--gl)}.sbg .nm{color:var(--g)}
+.sbo{background:var(--al)}.sbo .nm{color:var(--a)}
+.sbu{background:var(--ul)}.sbu .nm{color:var(--u)}
+.rh{display:flex;justify-content:space-between;align-items:center;margin-bottom:9px}
+.rh span{font-weight:700;font-size:14px}
+.bex{background:var(--g);color:#fff;border:none;border-radius:8px;padding:6px 13px;font-weight:700;font-size:12px;cursor:pointer;font-family:inherit}
+.rr{background:var(--card);border-radius:12px;padding:12px 13px;margin-bottom:8px;display:flex;align-items:center;gap:10px;box-shadow:0 1px 6px rgba(0,0,0,0.06);cursor:pointer;border:1px solid var(--bd);transition:box-shadow .15s}
+.rr:hover{box-shadow:0 3px 14px rgba(61,126,170,0.13)}
+.av{width:40px;height:40px;border-radius:50%;background:var(--pl);display:flex;align-items:center;justify-content:center;font-weight:800;font-size:15px;color:var(--p);flex-shrink:0}
+.ri{flex:1;min-width:0}
+.rn{font-weight:700;font-size:14px}
+.rp{font-weight:400;color:var(--sub);font-size:12px;margin-left:6px}
+.rs{font-size:12px;color:var(--sub);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tgs{display:flex;flex-direction:column;gap:3px;align-items:flex-end;flex-shrink:0}
+.tg{border-radius:20px;padding:3px 9px;font-weight:700;font-size:11px}
+.tgg{background:var(--gl);color:var(--g)}.tgo{background:var(--al);color:var(--a)}.tgr{background:var(--rl);color:var(--r)}.tgu{background:var(--ul);color:var(--u)}
+.arr{color:var(--bd);font-size:15px}
+.empty{text-align:center;color:var(--sub);padding:32px 0;font-size:13px}
+input,select{width:100%;border:1.5px solid var(--bd);border-radius:10px;padding:10px 12px;font-size:14px;color:#1A1A2E;background:#fff;outline:none;font-family:inherit;margin-bottom:10px}
+input:focus,select:focus{border-color:var(--p)}
+.lbl{font-size:12px;font-weight:600;color:var(--sub);margin-bottom:3px}
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:9px}
+.btn{border:none;border-radius:10px;padding:11px 0;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;width:100%}
+.bp{background:var(--p);color:#fff}.bg{background:var(--g);color:#fff}.bo{background:var(--a);color:#fff}
+.bu{background:var(--u);color:#fff}.bs{background:var(--bd);color:#1A1A2E}
+.tb{display:flex;gap:5px;margin-bottom:11px}
+.tab{flex:1;padding:8px 0;border:none;border-radius:10px;font-weight:700;font-size:12px;cursor:pointer;font-family:inherit;background:var(--card);color:var(--sub);box-shadow:0 1px 4px rgba(0,0,0,0.06)}
+.tab.on{background:var(--p);color:#fff}
+.hi{display:flex;gap:9px;padding:8px 0;border-bottom:1px solid var(--bd)}
+.hi:last-child{border-bottom:none}
+.st{font-size:12px;font-weight:700;color:var(--sub);margin-bottom:8px;padding-bottom:5px;border-bottom:1px solid var(--bd)}
+.ti{padding:9px 0;border-bottom:1px solid var(--bd)}
+.ti:last-child{border-bottom:none}
+.fr{display:flex;gap:7px;align-items:center}
+.mi{flex:1;margin-bottom:0!important}
+.bsm{border:none;border-radius:8px;padding:8px 12px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;white-space:nowrap}
+.bsmg{background:var(--g);color:#fff}.bsmu{background:var(--u);color:#fff}
+.mbg{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:200;align-items:center;justify-content:center;padding:14px}
+.mbg.show{display:flex}
+.modal{background:#fff;border-radius:18px;padding:22px;max-width:400px;width:100%;max-height:92vh;overflow-y:auto}
+.modal h2{font-size:16px;margin-bottom:14px}
+.qrw{display:flex;justify-content:center;margin:14px 0}
+.qi{background:var(--pl);border-radius:10px;padding:12px 13px;font-size:13px;margin-bottom:12px;line-height:1.8}
+.back{background:none;border:none;color:var(--p);font-weight:700;font-size:13px;cursor:pointer;margin-bottom:9px;padding:0;font-family:inherit}
+.ib{background:var(--pl);border-radius:10px;padding:10px 13px;font-size:13px;line-height:1.8;margin-top:9px}
+.pr{display:flex;align-items:center;justify-content:space-between;background:var(--ul);border-radius:10px;padding:11px 13px}
+.pv{font-size:24px;font-weight:800;color:var(--u)}
+.bpe{background:var(--u);color:#fff;border:none;border-radius:8px;padding:6px 13px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit}
+.dbox{background:var(--card);border-radius:14px;padding:14px;box-shadow:var(--sh);margin-bottom:10px}
+</style>
+</head>
+<body>
+<header>
+  <span class="hlogo">🍼</span>
+  <span class="htitle">嬰之房｜寄庫管理</span>
+  <div class="hsp"></div>
+  <button class="nb on" id="navD" onclick="showV('dash')">總覽</button>
+  <button class="nb" id="navS" onclick="showV('search')">查詢</button>
+  <button class="nb" id="navIt" onclick="showV('items')">品項</button>
+<button class="badd" onclick="showV('add')">＋ 新增</button>
+</header>
+<main id="mc"><div class="empty">載入中…</div></main>
+
+<!-- QR Modal -->
+<div class="mbg" id="qrM">
+  <div class="modal">
+    <h2>📱 掃碼確認取貨</h2>
+    <div class="qi" id="qrInfo"></div>
+    <div class="qrw"><div id="qrcode"></div></div>
+    <p style="text-align:center;color:var(--sub);font-size:12px;margin-bottom:14px">出示給客人掃描，客人簽名後自動完成</p>
+    <button class="btn bs" onclick="closeQR()">關閉</button>
+  </div>
+</div>
+
+<!-- 換品項 Modal -->
+<div class="mbg" id="itemM">
+  <div class="modal">
+    <h2>🔄 修改奶粉品項</h2>
+    <div class="lbl">選擇新品項</div>
+    <div id="itemSelectWrap"></div>
+    <div style="display:flex;gap:9px">
+      <button class="btn bs" style="flex:1" onclick="closeItemM()">取消</button>
+      <button class="btn bp" style="flex:2" onclick="saveItem()">儲存</button>
+    </div>
+  </div>
+</div>
+
+<!-- 品項客人 Modal -->
+<div class="mbg" id="icM">
+  <div class="modal">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
+      <h2 style="margin:0" id="icTitle"></h2>
+      <button onclick="document.getElementById('icM').classList.remove('show')" style="background:none;border:none;font-size:22px;cursor:pointer;color:var(--sub)">✕</button>
+    </div>
+    <div id="icList"></div>
+  </div>
+</div>
+
+<!-- 積分 Modal -->
+<div class="mbg" id="ptM">
+  <div class="modal">
+    <h2>🎯 修改玩具積分</h2>
+    <div class="lbl">積分（點）</div>
+    <input type="number" id="ptI" min="0"/>
+    <div style="display:flex;gap:9px">
+      <button class="btn bs" style="flex:1" onclick="closePt()">取消</button>
+      <button class="btn bu" style="flex:2" onclick="savePt()">儲存</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const SU="https://qkzduydrneoziqewtgkr.supabase.co";
+const BRAND="卡洛塔妮";
+const DEFAULT_ITEMS=[
+  "星護羊奶1號","星護羊奶3號",
+  "金裝羊奶1號","金裝羊奶3號",
+  "醇護金裝羊奶1號","醇護金裝羊奶3號",
+  "醇護一般羊奶1號","醇護一般羊奶3號",
+  "星護牛奶1號","星護牛奶3號",
+  "醇護牛奶1號","醇護牛奶3號",
+];
+function getItems(){
+  try{const s=localStorage.getItem("babyhouse_items");return s?JSON.parse(s):DEFAULT_ITEMS;}
+  catch{return DEFAULT_ITEMS;}
+}
+function saveItems(arr){localStorage.setItem("babyhouse_items",JSON.stringify(arr));}
+function itemSelect(id,val=""){
+  const ITEMS=getItems();
+  return `<select id="${id}" style="width:100%;border:1.5px solid var(--bd);border-radius:10px;padding:10px 12px;font-size:14px;color:#1A1A2E;background:#fff;outline:none;font-family:inherit;margin-bottom:10px">
+    <option value="">請選擇品項</option>
+    ${ITEMS.map(i=>`<option value="${i}" ${val===i?"selected":""}>${i}</option>`).join("")}
+  </select>`;
+}
+
+const SK="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFremR1eWRybmVvemlxZXd0Z2tyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI1MDQ1NTUsImV4cCI6MjA5ODA4MDU1NX0.AzlG1M4da5MU7bAuJUnMLcnJ4kitRy_25MQM3pPX01I";
+const H={"Content-Type":"application/json","apikey":SK,"Authorization":"Bearer "+SK};
+
+async function api(p,m="GET",b){
+  const r=await fetch(SU+"/rest/v1/"+p,{method:m,headers:{...H,"Prefer":"return=representation"},body:b?JSON.stringify(b):undefined});
+  if(!r.ok)throw new Error(await r.text());
+  return m==="DELETE"?null:r.json();
+}
+
+let custs=[],deps=[],wds=[],toys=[];
+let view="dash",sel=null,sq="",ptId=null;
+
+async function loadAll(){
+  try{
+    [custs,deps,wds,toys]=await Promise.all([
+      api("customers?select=*&order=created_at.desc"),
+      api("milk_deposits?select=*"),
+      api("milk_withdrawals?select=*"),
+      api("toy_exchanges?select=*"),
+    ]);
+    render();
+    checkBackupReminder();
+  }catch(e){document.getElementById("mc").innerHTML=`<div class="card" style="color:red">載入失敗：${e.message}</div>`;}
+}
+
+function checkBackupReminder(){
+  const key="babyhouse_backup";
+  const last=localStorage.getItem(key);
+  const now=new Date();
+  const thisMonth=now.getFullYear()+"-"+(now.getMonth()+1);
+  if(last===thisMonth) return;
+  const existing=document.getElementById("backupBanner");
+  if(existing) return;
+  const banner=document.createElement("div");
+  banner.id="backupBanner";
+  banner.style.cssText="position:fixed;bottom:0;left:0;right:0;background:#3D7EAA;color:#fff;padding:12px 16px;display:flex;align-items:center;justify-content:space-between;z-index:300;font-family:inherit;box-shadow:0 -2px 10px rgba(0,0,0,0.15)";
+  banner.innerHTML=`
+    <div style="font-size:13px;line-height:1.5">📦 <b>本月還沒備份！</b><br>建議匯出 Excel 存檔，保護您的資料。</div>
+    <div style="display:flex;gap:8px;flex-shrink:0;margin-left:12px">
+      <button onclick="doBackupNow()" style="background:#fff;color:#3D7EAA;border:none;border-radius:8px;padding:7px 14px;font-weight:700;font-size:13px;cursor:pointer;font-family:inherit">立即備份</button>
+      <button onclick="dismissBackup()" style="background:rgba(255,255,255,0.2);color:#fff;border:none;border-radius:8px;padding:7px 12px;font-size:12px;cursor:pointer;font-family:inherit">略過</button>
+    </div>`;
+  document.body.appendChild(banner);
+}
+function doBackupNow(){
+  exportExcel();
+  const now=new Date();
+  localStorage.setItem("babyhouse_backup", now.getFullYear()+"-"+(now.getMonth()+1));
+  const b=document.getElementById("backupBanner"); if(b) b.remove();
+}
+function dismissBackup(){
+  const now=new Date();
+  localStorage.setItem("babyhouse_backup", now.getFullYear()+"-"+(now.getMonth()+1));
+  const b=document.getElementById("backupBanner"); if(b) b.remove();
+}
+
+function mRem(id){
+  return deps.filter(x=>x.customer_id===id).reduce((s,x)=>s+x.qty,0)
+        -wds.filter(x=>x.customer_id===id).reduce((s,x)=>s+x.qty,0);
+}
+function tAct(id){return toys.filter(x=>x.customer_id===id&&!x.return_date).length;}
+function today(){return new Date().toISOString().slice(0,10);}
+
+function showV(v){
+  view=v;
+  document.getElementById("navD").classList.toggle("on",v==="dash");
+  document.getElementById("navS").classList.toggle("on",v==="search");
+  document.getElementById("navIt").classList.toggle("on",v==="items");
+  render();
+}
+
+function render(){
+  const mc=document.getElementById("mc");
+  if(view==="dash") mc.innerHTML=renderDash();
+  else if(view==="search") mc.innerHTML=renderSearch();
+  else if(view==="add") mc.innerHTML=renderAdd();
+  else if(view==="items") mc.innerHTML=renderItems();
+  else if(view==="detail"&&sel) mc.innerHTML=renderDetail();
+}
+
+// ── Items Management ─────────────────────────────────────────────
+function renderItems(){
+  const items=getItems();
+  return `
+<div class="card">
+  <h2 style="margin-bottom:4px;font-size:15px">🥛 品項管理</h2>
+  <div style="color:var(--sub);font-size:13px;margin-bottom:16px">可新增或刪除奶粉品項</div>
+
+  <div class="lbl">新增品項</div>
+  <div style="display:flex;gap:8px;margin-bottom:16px">
+    <input id="newItem" placeholder="輸入新品項名稱…" style="margin-bottom:0;flex:1">
+    <button onclick="addItem()" style="background:var(--g);color:#fff;border:none;border-radius:10px;padding:0 16px;font-weight:700;font-size:14px;cursor:pointer;font-family:inherit;white-space:nowrap">新增</button>
+  </div>
+
+  <div class="st">目前品項（${items.length} 項）</div>
+  ${items.length===0?'<div class="empty">尚無品項</div>':
+    items.map((item,i)=>`
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--bd)">
+      <span style="font-size:14px">🥛 ${item}</span>
+      <button onclick="removeItem(${i})" style="background:none;border:1px solid var(--r);color:var(--r);border-radius:8px;padding:4px 12px;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit">刪除</button>
+    </div>`).join("")
+  }
+</div>`;
+}
+
+function addItem(){
+  const input=document.getElementById("newItem");
+  const val=input.value.trim();
+  if(!val){alert("請輸入品項名稱");return;}
+  const items=getItems();
+  if(items.includes(val)){alert("此品項已存在");return;}
+  items.push(val);
+  saveItems(items);
+  render();
+}
+
+function removeItem(idx){
+  const items=getItems();
+  const name=items[idx];
+  if(!confirm(`確定要刪除「${name}」？`)) return;
+  items.splice(idx,1);
+  saveItems(items);
+  render();
+}
+
+// ── Dashboard ──────────────────────────────────────────────────
+function renderDash(){
+  const tot=custs.length,tm=custs.reduce((s,c)=>s+mRem(c.id),0);
+  const low=custs.filter(c=>{const r=mRem(c.id);return r>0&&r<=2;}).length;
+  const tt=custs.reduce((s,c)=>s+(c.toy_points||0),0);
+
+  // 品項庫存統計
+  const itemMap={};
+  custs.forEach(c=>{
+    const r=mRem(c.id);
+    if(r>0){
+      const key=c.item||"其他";
+      itemMap[key]=(itemMap[key]||0)+r;
+    }
+  });
+  const itemRows=Object.entries(itemMap).sort((a,b)=>b[1]-a[1]);
+  const itemHTML=itemRows.length?itemRows.map(([name,qty])=>`
+    <div onclick="showItemCusts('${name.replace(/'/g,"\'")}') " style="display:flex;align-items:center;justify-content:space-between;padding:10px 4px;border-bottom:1px solid var(--bd);cursor:pointer;border-radius:8px;transition:background .1s" onmouseover="this.style.background='#f5f5f5'" onmouseout="this.style.background=''">
+      <span style="font-size:13px">🥛 ${name}</span>
+      <div style="display:flex;align-items:center;gap:8px">
+        <span style="font-weight:800;font-size:15px;color:${qty<=2?"var(--r)":qty<=5?"var(--a)":"var(--g)"}">${qty} 罐</span>
+        <span style="color:var(--sub);font-size:12px">›</span>
+      </div>
+    </div>`).join("")
+  :'<div class="empty" style="padding:12px 0">目前無庫存</div>';
+
+  return `
+<div class="sg">
+  <div class="sb sbl"><span class="ic">👥</span><div><div class="nm">${tot}</div><div class="lb">寄庫客人</div></div></div>
+  <div class="sb sbg"><span class="ic">🍼</span><div><div class="nm">${tm}</div><div class="lb">奶粉總庫存</div></div></div>
+  <div class="sb sbo"><span class="ic">⚠️</span><div><div class="nm">${low}</div><div class="lb">快沒（≤2罐）</div></div></div>
+  <div class="sb sbu"><span class="ic">🧸</span><div><div class="nm">${tt}</div><div class="lb">玩具未兌換（點）</div></div></div>
+</div>
+
+<div class="card" style="margin-bottom:14px">
+  <div style="font-weight:700;font-size:14px;margin-bottom:4px">📊 各品項庫存統計</div>
+  <div style="color:var(--sub);font-size:12px;margin-bottom:10px">依品項顯示目前總庫存（綠色充足／橘色偏少／紅色快沒）</div>
+  ${itemHTML}
+</div>
+
+<div class="rh"><span>所有寄庫紀錄</span><button class="bex" onclick="exportExcel()">📥 匯出 Excel</button></div>
+${custs.map(rrHTML).join("")||'<div class="empty">還沒有紀錄，點右上角「＋ 新增」</div>'}`;
+}
+
+function rrHTML(c){
+  const r=mRem(c.id),ta=tAct(c.id);
+  const tc=r===0?"tgr":r<=2?"tgo":"tgg";
+  return `<div class="rr" onclick="openD('${c.id}')">
+    <div class="av">${c.name.slice(0,1)}</div>
+    <div class="ri"><div class="rn">${c.name}<span class="rp">${c.phone}</span></div>
+    <div class="rs">🍼 ${c.brand} ${c.item}</div></div>
+    <div class="tgs"><span class="tg ${tc}">奶粉 ${r} 罐</span>${ta>0?`<span class="tg tgu">🧸 ${ta}</span>`:""}</div>
+    <span class="arr">›</span>
+  </div>`;
+}
+
+// ── Search ─────────────────────────────────────────────────────
+function renderSearch(){
+  const f=sq?custs.filter(c=>c.name.includes(sq)||c.phone.includes(sq)||c.brand.toLowerCase().includes(sq.toLowerCase())):custs;
+  return `<input placeholder="姓名、電話或品牌…" id="sqi" value="${sq}" oninput="doSq(this.value)" autofocus>
+<div id="sqResults">${f.map(rrHTML).join("")||'<div class="empty">找不到符合紀錄</div>'}</div>`;
+}
+function doSq(v){
+  sq=v;
+  const f=v?custs.filter(c=>c.name.includes(v)||c.phone.includes(v)||c.brand.toLowerCase().includes(v.toLowerCase())):custs;
+  const el=document.getElementById("sqResults");
+  if(el) el.innerHTML=f.map(rrHTML).join("")||'<div class="empty">找不到符合紀錄</div>';
+}
+
+// ── Add ────────────────────────────────────────────────────────
+function renderAdd(){
+  return `<div class="card">
+  <h2 style="margin-bottom:14px;font-size:15px">🆕 新增寄庫客人</h2>
+  <div class="lbl">姓名</div><input id="fN" placeholder="王小明">
+  <div class="lbl">電話</div><input id="fPh" placeholder="0912345678" type="tel">
+  <div class="lbl">奶粉品牌</div>
+  <div style="background:var(--pl);border-radius:10px;padding:10px 13px;font-size:14px;font-weight:700;color:var(--p);margin-bottom:10px">卡洛塔妮</div>
+  <div class="lbl">品項</div>${itemSelect("fIt")}
+  <div class="g2">
+    <div><div class="lbl">首次寄入（罐）</div><input id="fQ" type="number" min="1" placeholder="6"></div>
+    <div><div class="lbl">日期</div><input id="fDt" type="date" value="${today()}"></div>
+  </div>
+  <div class="lbl">玩具積分</div><input id="fPt" type="number" min="0" value="0">
+  <div class="lbl">備註（選填）</div><input id="fNo" placeholder="過敏體質…">
+  <div style="display:flex;gap:9px;margin-top:4px">
+    <button class="btn bs" style="flex:1" onclick="showV('dash')">取消</button>
+    <button class="btn bp" style="flex:2" id="bSv" onclick="saveNew()">儲存</button>
+  </div>
+</div>`;
+}
+
+async function saveNew(){
+  const n=document.getElementById("fN").value.trim();
+  const ph=document.getElementById("fPh").value.trim();
+  const b=BRAND;
+  const it=document.getElementById("fIt").value.trim();
+  const q=parseInt(document.getElementById("fQ").value);
+  const dt=document.getElementById("fDt").value;
+  const pt=parseInt(document.getElementById("fPt").value)||0;
+  const no=document.getElementById("fNo").value.trim();
+  if(!n||!ph||!it){alert("請填寫姓名、電話並選擇品項");return;}
+  if(!q||q<=0){alert("請填寫首次寄入數量");return;}
+  document.getElementById("bSv").textContent="儲存中…";
+  try{
+    const [c]=await api("customers","POST",{name:n,phone:ph,brand:b,item:it,note:no,toy_points:pt,store:"彰化門市"});
+    await api("milk_deposits","POST",{customer_id:c.id,qty:q,date:dt,note:""});
+    await loadAll(); showV("dash");
+  }catch(e){alert("儲存失敗："+e.message);}
+}
+
+// ── Detail ─────────────────────────────────────────────────────
+function openD(id){sel=custs.find(c=>c.id===id);view="detail";render();}
+
+function renderDetail(){
+  const c=sel,r=mRem(c.id),ta=tAct(c.id);
+  const mc2=r===0?"var(--r)":r<=2?"var(--a)":"var(--g)";
+  const mb=r===0?"var(--rl)":r<=2?"var(--al)":"var(--gl)";
+  const mh=[
+    ...deps.filter(x=>x.customer_id===c.id).map(x=>({...x,tp:"in"})),
+    ...wds.filter(x=>x.customer_id===c.id).map(x=>({...x,tp:"out"})),
+  ].sort((a,b)=>b.date.localeCompare(a.date));
+  const ax=toys.filter(x=>x.customer_id===c.id&&!x.return_date);
+  const rx=toys.filter(x=>x.customer_id===c.id&&x.return_date);
+
+  return `
+<button class="back" onclick="showV('dash')">← 返回列表</button>
+<div class="card">
+  <div style="display:flex;align-items:center;gap:11px">
+    <div class="av" style="width:46px;height:46px;font-size:18px">${c.name.slice(0,1)}</div>
+    <div><div style="font-weight:800;font-size:17px">${c.name}</div><div style="color:var(--sub);font-size:13px">${c.phone}</div></div>
+  </div>
+  <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:7px;margin-top:12px">
+    <div style="background:${mb};border-radius:10px;padding:11px;text-align:center">
+      <div style="font-size:22px;font-weight:800;color:${mc2}">${r}</div>
+      <div style="font-size:10px;color:var(--sub)">奶粉庫存</div>
+    </div>
+    <div style="background:var(--ul);border-radius:10px;padding:11px;text-align:center">
+      <div style="font-size:22px;font-weight:800;color:var(--u)">${toys.filter(x=>x.customer_id===c.id).reduce((s,x)=>s+x.qty,0)}</div>
+      <div style="font-size:10px;color:var(--sub)">玩具已取（件）</div>
+    </div>
+    <div style="background:var(--ul);border-radius:10px;padding:11px;text-align:center">
+      <div style="font-size:22px;font-weight:800;color:var(--u)">${c.toy_points||0}</div>
+      <div style="font-size:10px;color:var(--sub)">玩具可用（點）</div>
+    </div>
+  </div>
+  <div class="ib" style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px">
+    <div>${c.brand}　<b>${c.item}</b>${c.note?`<br><span style="font-size:12px">備註：${c.note}</span>`:""}</div>
+    <button onclick="changeItem()" style="background:var(--p);color:#fff;border:none;border-radius:8px;padding:5px 12px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;flex-shrink:0">換品項</button>
+  </div>
+</div>
+
+<div class="tb">
+  <button class="tab on" id="tM" onclick="swT('M')">🍼 奶粉</button>
+  <button class="tab" id="tT" onclick="swT('T')">🧸 玩具</button>
+  <button class="tab" id="tH" onclick="swT('H')">📋 紀錄</button>
+</div>
+
+<div id="tcM">
+  <div class="dbox">
+    <div style="font-weight:700;font-size:13px;color:var(--a);margin-bottom:11px">📤 客人取貨</div>
+    <div class="g2">
+      <div><div class="lbl">數量（最多 ${r} 罐）</div><input id="wQ" type="number" min="1" max="${r}" placeholder="${r}"></div>
+      <div><div class="lbl">日期</div><input id="wD" type="date" value="${today()}"></div>
+    </div>
+    <div class="lbl">備註</div><input id="wN" placeholder="備註（選填）">
+    <button class="btn bp" onclick="doW(true)">取出＋QR Code</button>
+  </div>
+  <div class="dbox">
+    <div style="font-weight:700;font-size:13px;color:var(--g);margin-bottom:11px">📥 補貨入庫</div>
+    <div class="g2">
+      <div><div class="lbl">數量（罐）</div><input id="dQ" type="number" min="1" placeholder="6"></div>
+      <div><div class="lbl">日期</div><input id="dD" type="date" value="${today()}"></div>
+    </div>
+    <div class="lbl">備註</div><input id="dN" placeholder="備註（選填）">
+    <button class="btn bg" onclick="doDeposit()">確認入庫</button>
+  </div>
+</div>
+
+<div id="tcT" style="display:none">
+  <div class="dbox">
+    <div style="font-weight:700;font-size:13px;color:var(--u);margin-bottom:11px">🎯 積分管理</div>
+    <div class="pr">
+      <div><div style="font-size:11px;color:var(--sub)">目前可用積分</div><div class="pv">${c.toy_points||0} 點</div></div>
+      <button class="bpe" onclick="openPt()">修改積分</button>
+    </div>
+  </div>
+  <div class="dbox">
+    <div style="font-weight:700;font-size:13px;color:var(--a);margin-bottom:11px">📤 客人取玩具</div>
+    <div class="g2">
+      <div><div class="lbl">取出件數（最多 ${c.toy_points||0} 件）</div><input id="tyQ" type="number" min="1" max="${c.toy_points||0}" placeholder="1"></div>
+      <div><div class="lbl">日期</div><input id="tyD" type="date" value="${today()}"></div>
+    </div>
+    <div class="lbl">玩具名稱</div><input id="tyN" placeholder="費雪跳跳馬…">
+    <div class="lbl">備註</div><input id="tyNo" placeholder="備註（選填）">
+    <button class="btn bp" onclick="doToyOut(true)">取出＋QR Code</button>
+  </div>
+  <div class="dbox">
+    <div style="font-weight:700;font-size:13px;color:var(--g);margin-bottom:11px">📥 新增積分</div>
+    <div class="g2">
+      <div><div class="lbl">增加點數</div><input id="tpAdd" type="number" min="1" placeholder="3"></div>
+      <div><div class="lbl">日期</div><input id="tpDate" type="date" value="${today()}"></div>
+    </div>
+    <div class="lbl">備註</div><input id="tpNote" placeholder="備註（選填）">
+    <button class="btn bg" onclick="doAddPts()">確認新增積分</button>
+  </div>
+  <div class="dbox">
+    <div class="st">玩具取出紀錄</div>
+    ${toys.filter(x=>x.customer_id===c.id).length
+      ? toys.filter(x=>x.customer_id===c.id).sort((a,b)=>b.exchange_date.localeCompare(a.exchange_date)).map(t=>`
+        <div class="hi">
+          <span style="font-size:17px">📤</span>
+          <div style="flex:1">
+            <span style="font-weight:700;color:var(--a)">－${t.qty} 件</span>
+            <span style="font-size:13px;margin-left:7px">${t.name||""}</span>
+            ${t.signature_url?`<button onclick="viewSign('${t.id}')" style="background:none;border:none;color:var(--p);font-size:12px;margin-left:7px;cursor:pointer;text-decoration:underline;font-family:inherit;padding:0">✍️ 查看簽名</button>`:""}
+            <div style="color:var(--sub);font-size:11px;margin-top:1px">${t.exchange_date}</div>
+          </div>
+        </div>`).join("")
+      : '<div class="empty" style="padding:14px 0">尚無取出紀錄</div>'
+    }
+  </div>
+</div>
+
+<div id="tcH" style="display:none">
+  <div class="dbox">
+    <div class="st">奶粉進出紀錄</div>
+    ${mh.length?mh.map(h=>`<div class="hi">
+      <span style="font-size:17px">${h.tp==="in"?"📥":"📤"}</span>
+      <div style="flex:1">
+        <span style="font-weight:700;color:${h.tp==="in"?"var(--g)":"var(--a)"}">${h.tp==="in"?"＋":"－"}${h.qty} 罐</span>
+        ${h.note?`<span style="color:var(--sub);font-size:12px;margin-left:7px">${h.note}</span>`:""}
+        ${h.tp==="out"&&h.signature_url?`<button onclick="viewSign('${h.id}')" style="background:none;border:none;color:var(--p);font-size:12px;margin-left:7px;cursor:pointer;text-decoration:underline;font-family:inherit;padding:0">✍️ 查看簽名</button>`:""}
+        <div style="color:var(--sub);font-size:11px;margin-top:1px">${h.date}</div>
+      </div>
+    </div>`).join(""):'<div class="empty" style="padding:14px 0">尚無紀錄</div>'}
+  </div>
+</div>
+
+<div style="display:flex;justify-content:flex-end;margin-top:13px">
+  <button onclick="delCust()" style="background:none;border:1px solid var(--r);border-radius:8px;padding:6px 14px;color:var(--r);font-weight:600;font-size:12px;cursor:pointer;font-family:inherit">🗑 刪除紀錄</button>
+</div>`;
+}
+
+function swT(t){
+  ["M","T","H"].forEach(k=>{
+    document.getElementById("t"+k).classList.toggle("on",k===t);
+    document.getElementById("tc"+k).style.display=k===t?"block":"none";
+  });
+}
+
+// ── Milk ops ───────────────────────────────────────────────────
+async function doDeposit(){
+  const q=parseInt(document.getElementById("dQ").value);
+  const d=document.getElementById("dD").value;
+  const n=document.getElementById("dN").value.trim();
+  if(!q||q<=0){alert("請輸入正確數量");return;}
+  if(!confirm(`確認補貨入庫？\n\n客人：${sel.name}\n品項：${sel.brand} ${sel.item}\n入庫數量：${q} 罐\n日期：${d}`))return;
+  await api("milk_deposits","POST",{customer_id:sel.id,qty:q,date:d,note:n});
+  await loadAll(); sel=custs.find(c=>c.id===sel.id); render(); swT("M");
+}
+
+async function doW(qr){
+  const q=parseInt(document.getElementById("wQ").value);
+  const d=document.getElementById("wD").value;
+  const n=document.getElementById("wN").value.trim();
+  const r=mRem(sel.id);
+  if(!q||q<=0){alert("請輸入正確數量");return;}
+  if(q>r){alert(`庫存僅剩 ${r} 罐`);return;}
+  if(!confirm(`確認客人取貨？\n\n客人：${sel.name}\n品項：${sel.brand} ${sel.item}\n取出數量：${q} 罐\n取後剩餘：${r-q} 罐\n日期：${d}`))return;
+  const [rec]=await api("milk_withdrawals","POST",{customer_id:sel.id,qty:q,date:d,note:n,signature_url:""});
+  await loadAll(); sel=custs.find(c=>c.id===sel.id); render(); swT("M");
+  if(qr) openQR(rec.id,q,r-q);
+}
+
+// ── QR Code（指向 Netlify 簽名頁）──────────────────────────────
+const NETLIFY="https://eloquent-sunflower-e67294.netlify.app";
+function openQR(recId,qty,rem){
+  const name=sel.name,brand=sel.brand,item=sel.item;
+  const params=new URLSearchParams({id:recId,qty,remaining:rem,name,brand,item});
+  const url=NETLIFY+"/babyhouse-sign.html?"+params.toString();
+  document.getElementById("qrInfo").innerHTML=
+    `<b>${name}</b> 取出 <b>${qty} 罐</b> ${brand} ${item}<br>取貨後剩餘：<b>${rem} 罐</b>`;
+  document.getElementById("qrcode").innerHTML="";
+  new QRCode(document.getElementById("qrcode"),{
+    text:url, width:220, height:220,
+    correctLevel:QRCode.CorrectLevel.L
+  });
+  document.getElementById("qrM").classList.add("show");
+}
+function closeQR(){document.getElementById("qrM").classList.remove("show");}
+
+function openToyQR(recId,toyName,qty){
+  const name=sel.name,brand=sel.brand,item=sel.item;
+  const params=new URLSearchParams({id:recId,type:"toy",toyName,qty,name,brand,item});
+  const url=NETLIFY+"/babyhouse-sign.html?"+params.toString();
+  document.getElementById("qrInfo").innerHTML=
+    `<b>${name}</b> 取出玩具 <b>${toyName}</b> x ${qty} 件`;
+  document.getElementById("qrcode").innerHTML="";
+  new QRCode(document.getElementById("qrcode"),{
+    text:url, width:220, height:220,
+    correctLevel:QRCode.CorrectLevel.L
+  });
+  document.getElementById("qrM").classList.add("show");
+}
+
+// ── View signature ─────────────────────────────────────────────
+function viewSign(wid){
+  const url = (wds.find(x=>x.id===wid)||toys.find(x=>x.id===wid)||{}).signature_url;
+  if(!url){alert("此筆無簽名圖檔");return;}
+  const existing=document.getElementById("signModal");
+  if(existing) existing.remove();
+  const m=document.createElement("div");
+  m.id="signModal";
+  m.style.cssText="position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:999;display:flex;align-items:center;justify-content:center;padding:20px";
+  m.innerHTML=`<div style="background:#fff;border-radius:16px;padding:20px;max-width:400px;width:100%;box-shadow:0 4px 20px rgba(0,0,0,0.2)">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+      <span style="font-weight:700;font-size:16px">✍️ 客人簽名</span>
+      <button onclick="document.getElementById('signModal').remove()" style="background:none;border:none;font-size:22px;cursor:pointer;color:#6B7280">✕</button>
+    </div>
+    <img src="${url}" style="width:100%;border:1px solid #E8E0D8;border-radius:10px"/>
+  </div>`;
+  m.onclick=e=>{if(e.target===m)m.remove();};
+  document.body.appendChild(m);
+}
+
+// ── Toy ops ────────────────────────────────────────────────────
+async function doAddPts(){
+  const add=parseInt(document.getElementById("tpAdd").value);
+  const note=document.getElementById("tpNote").value.trim();
+  if(!add||add<=0){alert("請輸入正確點數");return;}
+  const newPts=(sel.toy_points||0)+add;
+  if(!confirm(`確認新增玩具積分？\n\n客人：${sel.name}\n新增點數：${add} 點\n新增後積分：${newPts} 點`))return;
+  await api(`customers?id=eq.${sel.id}`,"PATCH",{toy_points:newPts});
+  await loadAll(); sel=custs.find(c=>c.id===sel.id); render(); swT("T");
+}
+
+async function doToyOut(qr){
+  const qty=parseInt(document.getElementById("tyQ").value);
+  const name=document.getElementById("tyN").value.trim();
+  const d=document.getElementById("tyD").value;
+  const no=document.getElementById("tyNo").value.trim();
+  const pts=sel.toy_points||0;
+  if(!qty||qty<=0){alert("請輸入正確數量");return;}
+  if(qty>pts){alert(`積分僅剩 ${pts} 點`);return;}
+  if(!confirm(`確認客人取玩具？\n\n客人：${sel.name}\n玩具名稱：${name||"未填寫"}\n取出件數：${qty} 件\n剩餘積分：${pts-qty} 點`))return;
+  // 扣積分
+  await api(`customers?id=eq.${sel.id}`,"PATCH",{toy_points:pts-qty});
+  // 記錄取出
+  const [rec]=await api("toy_exchanges","POST",{customer_id:sel.id,name:name||"玩具",qty,exchange_date:d,note:no,signature_url:""});
+  await loadAll(); sel=custs.find(c=>c.id===sel.id); render(); swT("T");
+  if(qr) openToyQR(rec.id,name||"玩具",qty);
+}
+
+
+// ── Points ─────────────────────────────────────────────────────
+function openPt(){document.getElementById("ptI").value=sel.toy_points||0;ptId=sel.id;document.getElementById("ptM").classList.add("show");}
+function closePt(){document.getElementById("ptM").classList.remove("show");}
+
+function showItemCusts(itemName){
+  const matched=custs.filter(c=>c.item===itemName).map(c=>({c,r:mRem(c.id)})).filter(x=>x.r>0).sort((a,b)=>b.r-a.r);
+  document.getElementById("icTitle").textContent="🥛 "+itemName;
+  document.getElementById("icList").innerHTML=matched.length
+    ? matched.map(({c,r})=>`
+      <div onclick="openD('${c.id}');document.getElementById('icM').classList.remove('show')" style="display:flex;align-items:center;gap:10px;padding:10px 4px;border-bottom:1px solid var(--bd);cursor:pointer;border-radius:8px" onmouseover="this.style.background='#f5f5f5'" onmouseout="this.style.background=''">
+        <div style="width:36px;height:36px;border-radius:50%;background:var(--pl);display:flex;align-items:center;justify-content:center;font-weight:800;font-size:14px;color:var(--p);flex-shrink:0">${c.name.slice(0,1)}</div>
+        <div style="flex:1">
+          <div style="font-weight:700;font-size:14px">${c.name}<span style="font-weight:400;color:var(--sub);font-size:12px;margin-left:6px">${c.phone}</span></div>
+        </div>
+        <span style="font-weight:800;font-size:15px;color:${r<=2?"var(--r)":r<=5?"var(--a)":"var(--g)"}">${r} 罐</span>
+        <span style="color:var(--sub);font-size:13px">›</span>
+      </div>`).join("")
+    :'<div class="empty">此品項目前無庫存客人</div>';
+  document.getElementById("icM").classList.add("show");
+}
+
+function changeItem(){
+  document.getElementById("itemSelectWrap").innerHTML=itemSelect("itemSel", sel.item);
+  document.getElementById("itemM").classList.add("show");
+}
+function closeItemM(){document.getElementById("itemM").classList.remove("show");}
+async function saveItem(){
+  const it=document.getElementById("itemSel").value;
+  if(!it){alert("請選擇品項");return;}
+  await api(`customers?id=eq.${sel.id}`,"PATCH",{item:it});
+  await loadAll(); sel=custs.find(c=>c.id===sel.id); closeItemM(); render();
+}
+async function savePt(){
+  const p=parseInt(document.getElementById("ptI").value);
+  if(isNaN(p)||p<0){alert("請輸入有效積分");return;}
+  await api(`customers?id=eq.${ptId}`,"PATCH",{toy_points:p});
+  await loadAll(); sel=custs.find(c=>c.id===sel.id); closePt(); render(); swT("T");
+}
+
+// ── Delete ─────────────────────────────────────────────────────
+async function delCust(){
+  const pw=prompt("請輸入刪除密碼：");
+  if(pw===null) return;
+  if(pw!=="0000"){alert("密碼錯誤，無法刪除");return;}
+  if(!confirm("確定要刪除「"+sel.name+"」的所有寄庫紀錄？此動作無法復原。"))return;
+  await api(`customers?id=eq.${sel.id}`,"DELETE");
+  await loadAll(); showV("dash");
+}
+
+// ── Export ─────────────────────────────────────────────────────
+function exportExcel(){
+  const wb=XLSX.utils.book_new();
+  const ov=custs.map(c=>({姓名:c.name,電話:c.phone,奶粉品牌:c.brand,奶粉品項:c.item,目前剩餘:mRem(c.id),玩具積分:c.toy_points||0,玩具兌換中:tAct(c.id),備註:c.note||""}));
+  XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(ov),"客人總覽");
+  const wd2=wds.map(w=>{const c=custs.find(x=>x.id===w.customer_id)||{};return{姓名:c.name,電話:c.phone,品牌:c.brand,品項:c.item,取出日期:w.date,取出數量:w.qty,備註:w.note||"",有簽名:w.signature_url?"是":"否"};});
+  XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(wd2.length?wd2:[{提示:"目前無紀錄"}]),"奶粉取出紀錄");
+  const td=toys.map(t=>{const c=custs.find(x=>x.id===t.customer_id)||{};return{姓名:c.name,電話:c.phone,玩具名稱:t.name,兌換日期:t.exchange_date,歸還日期:t.return_date||"未歸還",備註:t.note||""};});
+  XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(td.length?td:[{提示:"目前無紀錄"}]),"玩具兌換紀錄");
+  XLSX.writeFile(wb,`嬰之房寄庫紀錄_${today()}.xlsx`);
+}
+
+loadAll();
+</script>
+</body>
+</html>

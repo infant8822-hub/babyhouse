@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0,user-scalable=no"/>
+<title>嬰之房｜取貨確認簽名</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:"Noto Sans TC","PingFang TC",sans-serif;background:#FDF8F4;color:#1A1A2E;min-height:100vh}
+header{background:#fff;border-bottom:1px solid #E8E0D8;padding:13px 15px;display:flex;align-items:center;gap:8px;box-shadow:0 2px 8px rgba(0,0,0,0.07)}
+main{max-width:480px;margin:0 auto;padding:18px 15px 60px}
+.card{background:#fff;border-radius:14px;padding:18px;box-shadow:0 2px 10px rgba(0,0,0,0.08);margin-bottom:12px}
+.ig{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin:12px 0}
+.ib{border-radius:11px;padding:13px;text-align:center}
+.g{background:#E8F7EF}.g .n{color:#4CAF82;font-size:26px;font-weight:800}
+.b{background:#EAF3FA}.b .n{color:#3D7EAA;font-size:26px;font-weight:800}
+.lbl{font-size:11px;color:#6B7280;margin-top:2px}
+canvas{display:block;width:100%;touch-action:none;cursor:crosshair}
+.sa{border:2px dashed #E8E0D8;border-radius:11px;overflow:hidden;background:#fff}
+.btn{width:100%;border:none;border-radius:10px;padding:12px;font-size:15px;font-weight:700;cursor:pointer;font-family:inherit}
+.bc{background:#E8E0D8;color:#1A1A2E}
+.bs{background:#4CAF82;color:#fff}
+.bs:disabled{background:#ccc;cursor:not-allowed}
+.hint{text-align:center;color:#6B7280;font-size:13px;margin-bottom:8px}
+.sw{text-align:center;padding:28px 16px}
+.si{font-size:58px}
+.st{font-size:20px;font-weight:800;color:#4CAF82;margin:10px 0 6px}
+.ss{color:#6B7280;font-size:14px;line-height:1.7}
+</style>
+</head>
+<body>
+<header>
+  <span style="font-size:20px">🍼</span>
+  <span style="font-weight:700;font-size:15px">嬰之房｜取貨確認</span>
+</header>
+<main>
+  <div id="mc"><div style="text-align:center;padding:40px;color:#6B7280">載入中…</div></div>
+</main>
+<script>
+const SU="https://qkzduydrneoziqewtgkr.supabase.co";
+const SK="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFremR1eWRybmVvemlxZXd0Z2tyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI1MDQ1NTUsImV4cCI6MjA5ODA4MDU1NX0.AzlG1M4da5MU7bAuJUnMLcnJ4kitRy_25MQM3pPX01I";
+const H={"Content-Type":"application/json","apikey":SK,"Authorization":"Bearer "+SK};
+
+const p=new URLSearchParams(location.search);
+const recId=p.get("id"), qty=p.get("qty"), rem=p.get("remaining");
+const name=p.get("name"), brand=p.get("brand"), item=p.get("item");
+const type=p.get("type")||"milk", toyName=p.get("toyName")||"";
+
+let cv,ctx,drawing=false,hasDrawn=false;
+
+function init(){
+  if(!recId){
+    document.getElementById("mc").innerHTML='<div class="card" style="text-align:center;color:#E05A4E;padding:40px">連結無效，請請店員重新產生 QR Code</div>';
+    return;
+  }
+  const infoHTML = type==="toy"
+    ? `<div class="card">
+        <div style="font-size:12px;color:#6B7280;margin-bottom:3px">兌換客人</div>
+        <div style="font-size:19px;font-weight:800;margin-bottom:8px">${name}</div>
+        <div class="ig" style="grid-template-columns:1fr">
+          <div class="ib g"><div class="n" style="font-size:18px">🧸 ${toyName}</div><div class="lbl">兌換玩具</div></div>
+        </div>
+      </div>`
+    : `<div class="card">
+        <div style="font-size:12px;color:#6B7280;margin-bottom:3px">取貨客人</div>
+        <div style="font-size:19px;font-weight:800;margin-bottom:8px">${name}</div>
+        <div style="font-size:13px;color:#6B7280">${brand}　${item}</div>
+        <div class="ig">
+          <div class="ib g"><div class="n">${qty}</div><div class="lbl">本次取出（罐）</div></div>
+          <div class="ib b"><div class="n">${rem}</div><div class="lbl">取貨後剩餘（罐）</div></div>
+        </div>
+      </div>`;
+  document.getElementById("mc").innerHTML=infoHTML+`
+<div class="card" id="sc">
+  <div style="font-weight:700;font-size:14px;margin-bottom:7px">✍️ 請簽名確認取貨</div>
+  <div class="hint">用手指在下方空白處簽名</div>
+  <div class="sa"><canvas id="cv"></canvas></div>
+  <div style="display:flex;gap:8px;margin-top:11px">
+    <button class="btn bc" style="flex:1" onclick="clr()">清除重簽</button>
+    <button class="btn bs" style="flex:2" id="btn" onclick="sub()" disabled>送出確認</button>
+  </div>
+</div>`;
+
+  cv=document.getElementById("cv");
+  const W=cv.parentElement.clientWidth-4;
+  cv.width=W*2; cv.height=180*2;
+  cv.style.width=W+"px"; cv.style.height="180px";
+  ctx=cv.getContext("2d");
+  ctx.scale(2,2);
+  ctx.strokeStyle="#1A1A2E"; ctx.lineWidth=2.5; ctx.lineCap="round"; ctx.lineJoin="round";
+
+  function pos(e){
+    const r=cv.getBoundingClientRect(), t=e.touches?e.touches[0]:e;
+    return{x:(t.clientX-r.left)*(cv.width/r.width)/2, y:(t.clientY-r.top)*(cv.height/r.height)/2};
+  }
+  cv.addEventListener("mousedown",e=>{drawing=true;const p=pos(e);ctx.beginPath();ctx.moveTo(p.x,p.y);});
+  cv.addEventListener("mousemove",e=>{if(!drawing)return;const p=pos(e);ctx.lineTo(p.x,p.y);ctx.stroke();hasDrawn=true;document.getElementById("btn").disabled=false;});
+  cv.addEventListener("mouseup",()=>drawing=false);
+  cv.addEventListener("touchstart",e=>{e.preventDefault();drawing=true;const p=pos(e);ctx.beginPath();ctx.moveTo(p.x,p.y);},{passive:false});
+  cv.addEventListener("touchmove",e=>{e.preventDefault();if(!drawing)return;const p=pos(e);ctx.lineTo(p.x,p.y);ctx.stroke();hasDrawn=true;document.getElementById("btn").disabled=false;},{passive:false});
+  cv.addEventListener("touchend",()=>drawing=false);
+}
+
+function clr(){
+  ctx.clearRect(0,0,cv.width/2,cv.height/2);
+  hasDrawn=false;
+  document.getElementById("btn").disabled=true;
+}
+
+async function sub(){
+  if(!hasDrawn){alert("請先簽名");return;}
+  const btn=document.getElementById("btn");
+  btn.textContent="送出中…"; btn.disabled=true;
+  const du=cv.toDataURL("image/png");
+  try{
+    const table = type==="toy" ? "toy_exchanges" : "milk_withdrawals";
+    await fetch(SU+"/rest/v1/"+table+"?id=eq."+recId,{
+      method:"PATCH",
+      headers:{...H,"Prefer":"return=representation"},
+      body:JSON.stringify({signature_url:du})
+    });
+    document.getElementById("sc").innerHTML=`
+<div class="sw">
+  <div class="si">✅</div>
+  <div class="st">取貨確認完成</div>
+  <div class="ss">感謝 <b>${name}</b><br>本次取出 <b>${qty} 罐</b><br>剩餘庫存 <b>${rem} 罐</b><br><br>感謝您對嬰之房的支持 🍼</div>
+</div>`;
+  }catch(e){
+    btn.textContent="送出確認"; btn.disabled=false;
+    alert("送出失敗，請再試一次");
+  }
+}
+init();
+</script>
+</body>
+</html>
