@@ -245,8 +245,10 @@ async function doLogin(){
   if(!u||!p){err.textContent="請輸入帳號和密碼";return;}
   btn.textContent="驗證中…"; btn.disabled=true; err.textContent="";
   try{
-    const res=await fetch(SU+"/rest/v1/staff_accounts?username=eq."+encodeURIComponent(u)+"&password=eq."+encodeURIComponent(p)+"&select=*",{
-      headers:{"apikey":SK,"Authorization":"Bearer "+SK,"Content-Type":"application/json"}
+    const res=await fetch(SU+"/rest/v1/rpc/staff_login",{
+      method:"POST",
+      headers:{"apikey":SK,"Authorization":"Bearer "+SK,"Content-Type":"application/json"},
+      body:JSON.stringify({p_username:u,p_password:p})
     });
     const data=await res.json();
     if(!Array.isArray(data)||!data.length){
@@ -671,9 +673,9 @@ async function doW(){
   if(q>r){alert(`庫存僅剩 ${r} 罐`);return;}
   if(!staff){alert("請輸入服務人員員編");return;}
   // 驗證員編是否存在
-  const check=await fetch(SU+"/rest/v1/staff_accounts?username=eq."+encodeURIComponent(staff)+"&select=id",{headers:{"apikey":SK,"Authorization":"Bearer "+SK}});
-  const checkData=await check.json();
-  if(!checkData||!checkData.length){alert("找不到此員編，請確認帳號是否正確");return;}
+  const check=await fetch(SU+"/rest/v1/rpc/staff_exists",{method:"POST",headers:H,body:JSON.stringify({p_username:staff})});
+  const exists=await check.json();
+  if(!exists){alert("找不到此員編，請確認帳號是否正確");return;}
   if(!confirm(`確認客人取貨？\n\n客人：${sel.name}\n品項：${sel.item}\n取出數量：${q} 罐\n取後剩餘：${r-q} 罐\n服務人員：${staff}`))return;
   const itemNote=sel.item+(n?` | ${n}`:"")+` | 服務：${staff}`;
   const [rec]=await api("milk_withdrawals","POST",{customer_id:sel.id,qty:q,date:d,note:itemNote,signature_url:""});
@@ -692,9 +694,9 @@ async function doToyOut(){
   if(!qty||qty<=0){alert("請輸入正確數量");return;}
   if(qty>pts){alert(`積分僅剩 ${pts} 點`);return;}
   if(!staff){alert("請輸入服務人員員編");return;}
-  const check=await fetch(SU+"/rest/v1/staff_accounts?username=eq."+encodeURIComponent(staff)+"&select=id",{headers:{"apikey":SK,"Authorization":"Bearer "+SK}});
-  const checkData=await check.json();
-  if(!checkData||!checkData.length){alert("找不到此員編，請確認帳號是否正確");return;}
+  const check=await fetch(SU+"/rest/v1/rpc/staff_exists",{method:"POST",headers:H,body:JSON.stringify({p_username:staff})});
+  const exists=await check.json();
+  if(!exists){alert("找不到此員編，請確認帳號是否正確");return;}
   if(!confirm(`確認客人取玩具？\n\n客人：${sel.name}\n玩具：${name||"未填寫"}\n取出：${qty} 件\n剩餘積分：${pts-qty} 點\n服務人員：${staff}`))return;
   await api(`customers?id=eq.${sel.id}`,"PATCH",{toy_points:pts-qty});
   const noteWithStaff=no?`${no} | 服務：${staff}`:`服務：${staff}`;
@@ -823,8 +825,10 @@ async function confirmOp(){
   const p=document.getElementById("opPass").value.trim();
   if(!u||!p){document.getElementById("opErr").textContent="請輸入帳號和密碼";return;}
   try{
-    const res=await fetch(SU+"/rest/v1/staff_accounts?username=eq."+encodeURIComponent(u)+"&password=eq."+encodeURIComponent(p)+"&select=*",{
-      headers:{"apikey":SK,"Authorization":"Bearer "+SK}
+    const res=await fetch(SU+"/rest/v1/rpc/staff_login",{
+      method:"POST",
+      headers:{"apikey":SK,"Authorization":"Bearer "+SK,"Content-Type":"application/json"},
+      body:JSON.stringify({p_username:u,p_password:p})
     });
     const data=await res.json();
     if(!Array.isArray(data)||!data.length){document.getElementById("opErr").textContent="帳號或密碼錯誤";return;}
@@ -835,7 +839,9 @@ async function confirmOp(){
 
 // ── 帳號管理 ─────────────────────────────────────────────────────
 async function openAccModal(){
-  staffAccounts=await api("staff_accounts?select=*&order=created_at.asc");
+  staffAccounts=await fetch(SU+"/rest/v1/rpc/list_staff_accounts",{
+    method:"POST",headers:H,body:JSON.stringify({})
+  }).then(r=>r.json());
   document.getElementById("accList").innerHTML=staffAccounts.map(a=>`
     <div class="acc-row">
       <div>
