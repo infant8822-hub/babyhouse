@@ -75,10 +75,11 @@ async function doSearch(){
       return;
     }
     const c=custs[0];
-    const [deps,wds,toys]=await Promise.all([
+    const [deps,wds,toys,itemAnns]=await Promise.all([
       fetch(`${SUPA_URL}/rest/v1/milk_deposits?customer_id=eq.${c.id}&select=*`,{headers:h}).then(r=>r.json()),
       fetch(`${SUPA_URL}/rest/v1/milk_withdrawals?customer_id=eq.${c.id}&select=*`,{headers:h}).then(r=>r.json()),
       fetch(`${SUPA_URL}/rest/v1/toy_exchanges?customer_id=eq.${c.id}&select=*`,{headers:h}).then(r=>r.json()),
+      fetch(`${SUPA_URL}/rest/v1/announcements?select=*`,{headers:h}).then(r=>r.json()),
     ]);
     const milkRem=deps.reduce((s,d)=>s+d.qty,0)-wds.reduce((s,d)=>s+d.qty,0);
     const activeEx=toys.filter(t=>!t.return_date);

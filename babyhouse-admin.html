@@ -287,12 +287,15 @@ function doLogout(){
 // ── 載入資料 ────────────────────────────────────────────────────
 async function loadAll(){
   try{
-    [custs,deps,wds,toys]=await Promise.all([
+    let announcements_data=[];
+    [custs,deps,wds,toys,announcements_data]=await Promise.all([
       api("customers?select=*&order=created_at.desc"),
       api("milk_deposits?select=*"),
       api("milk_withdrawals?select=*"),
       api("toy_exchanges?select=*"),
+      api("announcements?select=*"),
     ]);
+    window._announcements=announcements_data;
     render();
     checkBackupReminder();
   }catch(e){document.getElementById("mc").innerHTML=`<div class="card" style="color:red">載入失敗：${e.message}</div>`;}
@@ -616,7 +619,13 @@ function renderDetail(){
   </div>
 </div>
 
-<div style="display:flex;justify-content:flex-end;margin-top:13px">
+<div class="dbox" style="margin-top:13px">
+  <div style="font-weight:700;font-size:13px;margin-bottom:8px">📢 個別公告</div>
+  <div style="font-size:12px;color:var(--sub);margin-bottom:8px">設定後客人查詢時會看到此公告（會覆蓋品項公告）</div>
+  <textarea id="custAnnounce" style="width:100%;border:1.5px solid var(--bd);border-radius:10px;padding:10px 12px;font-size:13px;font-family:inherit;resize:vertical;min-height:70px;outline:none" placeholder="例：您的奶粉最後取貨時間為115年6月30日">${c.announcement||""}</textarea>
+  <button onclick="saveCustAnnouncement()" class="btn bp" style="margin-top:6px">儲存公告</button>
+</div>
+<div style="display:flex;justify-content:flex-end;margin-top:10px">
   <button onclick="delCust()" style="background:none;border:1px solid var(--r);border-radius:8px;padding:6px 14px;color:var(--r);font-weight:600;font-size:12px;cursor:pointer;font-family:inherit">🗑 刪除紀錄</button>
 </div>`;
 }
@@ -821,9 +830,18 @@ async function openAccModal(){
   staffAccounts=await api("staff_accounts?select=*&order=created_at.asc");
   document.getElementById("accList").innerHTML=staffAccounts.map(a=>`
     <div class="acc-row">
-      <div><span style="font-weight:700;font-size:14px">${a.username}</span>
-      <span style="margin-left:8px;background:${a.role==="admin"?"var(--al)":"var(--gl)"};color:${a.role==="admin"?"var(--a)":"var(--g)"};border-radius:20px;padding:2px 10px;font-size:11px;font-weight:700">${a.role==="admin"?"最高權限":"一般員工"}</span></div>
-      ${a.role!=="admin"?`<button onclick="delAccount('${a.id}','${a.username}')" style="background:none;border:1px solid var(--r);color:var(--r);border-radius:8px;padding:4px 10px;font-size:12px;cursor:pointer;font-family:inherit">刪除</button>`:""}
+      <div>
+        <span style="font-weight:700;font-size:14px">${a.username}</span>
+        <span style="margin-left:8px;background:${a.role==="admin"?"var(--al)":"var(--gl)"};color:${a.role==="admin"?"var(--a)":"var(--g)"};border-radius:20px;padding:2px 10px;font-size:11px;font-weight:700">${a.role==="admin"?"最高權限":"一般員工"}</span>
+      </div>
+      <div style="display:flex;gap:6px">
+        ${a.username!==currentUser.username?(
+          a.role==="admin"
+          ?`<button onclick="setRole('${a.id}','${a.username}','staff')" style="background:none;border:1px solid var(--sub);color:var(--sub);border-radius:8px;padding:4px 10px;font-size:11px;cursor:pointer;font-family:inherit">降為員工</button>`
+          :`<button onclick="setRole('${a.id}','${a.username}','admin')" style="background:none;border:1px solid var(--a);color:var(--a);border-radius:8px;padding:4px 10px;font-size:11px;cursor:pointer;font-family:inherit">設最高權限</button>`
+        ):""}
+        ${a.username!==currentUser.username?`<button onclick="delAccount('${a.id}','${a.username}')" style="background:none;border:1px solid var(--r);color:var(--r);border-radius:8px;padding:4px 10px;font-size:12px;cursor:pointer;font-family:inherit">刪除</button>`:""}
+      </div>
     </div>`).join("");
   document.getElementById("accM").classList.add("show");
 }
@@ -840,6 +858,38 @@ async function delAccount(id,name){
   if(!confirm(`確定要刪除帳號「${name}」？`))return;
   await api(`staff_accounts?id=eq.${id}`,"DELETE");
   await openAccModal();
+}
+
+async function setRole(id,name,role){
+  const label=role==="admin"?"最高權限":"一般員工";
+  if(!confirm(`確定要將「${name}」設為${label}？`))return;
+  await api(`staff_accounts?id=eq.${id}`,"PATCH",{role});
+  await openAccModal();
+}
+
+// ── 公告功能 ─────────────────────────────────────────────────────
+async function editItemAnnouncement(itemName){
+  const existing=(window._announcements||[]).find(a=>a.item===itemName);
+  const current=existing?existing.content:"";
+  const newContent=prompt(`設定「${itemName}」的品項公告：
+（清空後儲存可刪除公告）`,current);
+  if(newContent===null) return;
+  if(newContent.trim()===""){
+    // 刪除公告
+    if(existing) await api(`announcements?id=eq.${existing.id}`,"DELETE");
+  }else if(existing){
+    await api(`announcements?id=eq.${existing.id}`,"PATCH",{content:newContent.trim()});
+  }else{
+    await api("announcements","POST",{item:itemName,content:newContent.trim()});
+  }
+  await loadAll();
+}
+
+async function saveCustAnnouncement(){
+  const content=document.getElementById("custAnnounce").value.trim();
+  await api(`customers?id=eq.${sel.id}`,"PATCH",{announcement:content});
+  await loadAll(); sel=custs.find(c=>c.id===sel.id);
+  alert("公告已儲存！");
 }
 
 // ── 匯出 Excel ───────────────────────────────────────────────────
