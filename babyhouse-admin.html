@@ -74,9 +74,6 @@ input:focus,select:focus{border-color:var(--p)}
 .qi{background:var(--pl);border-radius:10px;padding:12px 13px;font-size:13px;margin-bottom:12px;line-height:1.8}
 .back{background:none;border:none;color:var(--p);font-weight:700;font-size:13px;cursor:pointer;margin-bottom:9px;padding:0;font-family:inherit}
 .ib{background:var(--pl);border-radius:10px;padding:10px 13px;font-size:13px;line-height:1.8;margin-top:9px;display:flex;align-items:center;justify-content:space-between;gap:8px}
-.pr{display:flex;align-items:center;justify-content:space-between;background:var(--ul);border-radius:10px;padding:11px 13px}
-.pv{font-size:24px;font-weight:800;color:var(--u)}
-.bpe{background:var(--u);color:#fff;border:none;border-radius:8px;padding:6px 13px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit}
 .dbox{background:var(--card);border-radius:14px;padding:14px;box-shadow:var(--sh);margin-bottom:10px}
 /* 操作者確認 */
 .op-bg{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:500;align-items:center;justify-content:center;padding:16px}
@@ -131,19 +128,6 @@ input:focus,select:focus{border-color:var(--p)}
     <div style="display:flex;gap:8px;margin-bottom:0">
       <button class="btn bs" style="flex:1" onclick="closeQR()">關閉</button>
       <button id="copyLinkBtn" class="btn bp" style="flex:2" onclick="copyQRLink()">📋 複製連結</button>
-    </div>
-  </div>
-</div>
-
-<!-- 積分 Modal -->
-<div class="mbg" id="ptM">
-  <div class="modal">
-    <h2>🎯 修改玩具積分</h2>
-    <div class="lbl">積分（點）</div>
-    <input type="number" id="ptI" min="0"/>
-    <div style="display:flex;gap:9px">
-      <button class="btn bs" style="flex:1" onclick="closePt()">取消</button>
-      <button class="btn bu" style="flex:2" onclick="savePt()">儲存</button>
     </div>
   </div>
 </div>
@@ -236,7 +220,7 @@ async function rpc(fn,params={}){
 
 // ── 狀態 ────────────────────────────────────────────────────────
 let custs=[],deps=[],wds=[],toys=[],ptLogs=[],staffAccounts=[];
-let view="dash",sel=null,sq="",ptId=null,opCallback=null,currentUser=null;
+let view="dash",sel=null,sq="",opCallback=null,currentUser=null;
 
 // ── 登入 ────────────────────────────────────────────────────────
 async function doLogin(){
@@ -572,10 +556,6 @@ function renderDetail(){
 
 <div id="tcT" style="display:none">
   <div class="dbox">
-    <div class="pr" style="margin-bottom:13px">
-      <div><div style="font-size:11px;color:var(--sub)">目前可用積分</div><div class="pv">${tp} 點</div></div>
-      <button class="bpe" onclick="openPt()">修改積分</button>
-    </div>
     <div style="font-weight:700;font-size:13px;color:var(--a);margin-bottom:11px">📤 客人取玩具</div>
     <div class="g2">
       <div><div class="lbl">取出件數（最多 ${tp} 件）</div><input id="tyQ" type="number" min="1" max="${tp}" placeholder="1"></div>
@@ -787,16 +767,6 @@ function viewSign(wid,type){
   </div>`;
   m.onclick=e=>{if(e.target===m)m.remove();};
   document.body.appendChild(m);
-}
-
-// ── 積分 Modal ───────────────────────────────────────────────────
-function openPt(){document.getElementById("ptI").value=sel.toy_points||0;ptId=sel.id;document.getElementById("ptM").classList.add("show");}
-function closePt(){document.getElementById("ptM").classList.remove("show");}
-async function savePt(){
-  const p=parseInt(document.getElementById("ptI").value);
-  if(isNaN(p)||p<0){alert("請輸入有效積分");return;}
-  await rpc("admin_set_toy_points",{p_token:tok(),p_customer_id:ptId,p_points:p});
-  await loadAll(); sel=custs.find(c=>c.id===sel.id); closePt(); render(); swT("T");
 }
 
 // ── 換品項 ────────────────────────────────────────────────────────
