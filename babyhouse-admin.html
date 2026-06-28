@@ -813,7 +813,10 @@ function exportExcel(){
     if(rows.length) XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(rows),item.slice(0,31));
   });
   XLSX.writeFile(wb,`嬰之房寄庫紀錄_${today()}.xlsx`);
-  doBackupNow();
+  // 記錄本月已備份
+  const now=new Date();
+  localStorage.setItem("babyhouse_backup",now.getFullYear()+"-"+(now.getMonth()+1));
+  const b=document.getElementById("backupBanner");if(b)b.remove();
 }
 
 // ── 啟動 ─────────────────────────────────────────────────────────
