@@ -235,7 +235,7 @@ async function rpc(fn,params={}){
 }
 
 // ── 狀態 ────────────────────────────────────────────────────────
-let custs=[],deps=[],wds=[],toys=[],staffAccounts=[];
+let custs=[],deps=[],wds=[],toys=[],ptLogs=[],staffAccounts=[];
 let view="dash",sel=null,sq="",ptId=null,opCallback=null,currentUser=null;
 
 // ── 登入 ────────────────────────────────────────────────────────
@@ -294,7 +294,7 @@ async function loadAll(){
   try{
     const d=await rpc("admin_get_dashboard",{p_token:tok()});
     custs=(d.customers||[]).sort((a,b)=>b.created_at.localeCompare(a.created_at));
-    deps=d.deposits||[]; wds=d.withdrawals||[]; toys=d.toys||[];
+    deps=d.deposits||[]; wds=d.withdrawals||[]; toys=d.toys||[]; ptLogs=d.point_logs||[];
     window._announcements=d.announcements||[];
     render();
     checkBackupReminder();
@@ -507,7 +507,10 @@ function renderDetail(){
     ...deps.filter(x=>x.customer_id===c.id).map(x=>({...x,tp:"in"})),
     ...wds.filter(x=>x.customer_id===c.id).map(x=>({...x,tp:"out"})),
   ].sort((a,b)=>b.date.localeCompare(a.date));
-  const toyHist=toys.filter(x=>x.customer_id===c.id&&x.qty>0).sort((a,b)=>b.exchange_date.localeCompare(a.exchange_date));
+  const toyHist=[
+    ...toys.filter(x=>x.customer_id===c.id&&x.qty>0).map(x=>({...x,tp:"out",d:x.exchange_date})),
+    ...ptLogs.filter(x=>x.customer_id===c.id).map(x=>({...x,tp:"in",d:x.date})),
+  ].sort((a,b)=>b.d.localeCompare(a.d));
 
   return `
 <button class="back" onclick="showV('dash')">← 返回列表</button>
@@ -591,20 +594,22 @@ function renderDetail(){
       <div><div class="lbl">日期</div><input id="tpDate" type="date" value="${today()}"></div>
     </div>
     <div class="lbl">備註</div><input id="tpNote" placeholder="備註（選填）">
+    <div class="lbl">服務人員員編 <span style="color:var(--r)">*必填</span></div>
+    <input id="tpStaff" placeholder="請輸入員編（登入帳號）">
     <button class="btn bg" onclick="doAddPts()">確認新增積分</button>
   </div>
   <div class="dbox">
-    <div class="st">玩具取出紀錄</div>
+    <div class="st">玩具積分紀錄</div>
     ${toyHist.length?toyHist.map(t=>`<div class="hi">
-      <span style="font-size:17px">📤</span>
+      <span style="font-size:17px">${t.tp==="in"?"📥":"📤"}</span>
       <div style="flex:1">
-        <span style="font-weight:700;color:var(--a)">－${t.qty} 件</span>
-        <span style="font-size:13px;margin-left:7px">${t.name||""}</span>
+        <span style="font-weight:700;color:${t.tp==="in"?"var(--g)":"var(--a)"}">${t.tp==="in"?"＋"+t.points+" 點":"－"+t.qty+" 件"}</span>
+        <span style="font-size:13px;margin-left:7px">${t.tp==="in"?(t.note||""):(t.name||"")+(t.note?` | ${t.note}`:"")}</span>
 
-        ${t.signature_url?`<button onclick="viewSign('${t.id}','toy')" style="background:none;border:none;color:var(--p);font-size:12px;margin-left:7px;cursor:pointer;text-decoration:underline;font-family:inherit;padding:0">✍️ 查看簽名</button>`:""}
-        <div style="color:var(--sub);font-size:11px;margin-top:1px">${t.exchange_date}</div>
+        ${t.tp==="out"&&t.signature_url?`<button onclick="viewSign('${t.id}','toy')" style="background:none;border:none;color:var(--p);font-size:12px;margin-left:7px;cursor:pointer;text-decoration:underline;font-family:inherit;padding:0">✍️ 查看簽名</button>`:""}
+        <div style="color:var(--sub);font-size:11px;margin-top:1px">${t.d}</div>
       </div>
-    </div>`).join(""):'<div class="empty" style="padding:14px 0">尚無取出紀錄</div>'}
+    </div>`).join(""):'<div class="empty" style="padding:14px 0">尚無紀錄</div>'}
   </div>
 </div>
 
@@ -647,14 +652,20 @@ async function doDeposit(){
   const q=parseInt(document.getElementById("dQ").value);
   const d=document.getElementById("dD").value;
   const n=document.getElementById("dN").value.trim();
+  const staff=document.getElementById("dStaff").value.trim();
   if(!q||q<=0){alert("請輸入正確數量");return;}
+  if(!staff){alert("請輸入服務人員員編");return;}
+  const exists=await rpc("staff_exists",{p_username:staff});
+  if(!exists){alert("找不到此員編，請確認帳號是否正確");return;}
   if(!confirm(`確認補貨入庫？
 
 客人：${sel.name}
 品項：${sel.brand} ${sel.item}
 入庫數量：${q} 罐
-日期：${d}`))return;
-  await rpc("admin_add_deposit",{p_token:tok(),p_customer_id:sel.id,p_qty:q,p_date:d,p_note:n});
+日期：${d}
+服務人員：${staff}`))return;
+  const noteWithStaff=n?`${n} | 服務：${staff}`:`服務：${staff}`;
+  await rpc("admin_add_deposit",{p_token:tok(),p_customer_id:sel.id,p_qty:q,p_date:d,p_note:noteWithStaff});
   await loadAll(); sel=custs.find(c=>c.id===sel.id); render(); swT("M");
 }
 
@@ -701,14 +712,22 @@ async function doToyOut(){
 
 async function doAddPts(){
   const add=parseInt(document.getElementById("tpAdd").value);
+  const d=document.getElementById("tpDate").value;
+  const n=document.getElementById("tpNote").value.trim();
+  const staff=document.getElementById("tpStaff").value.trim();
   if(!add||add<=0){alert("請輸入正確點數");return;}
+  if(!staff){alert("請輸入服務人員員編");return;}
+  const exists=await rpc("staff_exists",{p_username:staff});
+  if(!exists){alert("找不到此員編，請確認帳號是否正確");return;}
   const newPts=(sel.toy_points||0)+add;
   if(!confirm(`確認新增玩具積分？
 
 客人：${sel.name}
 新增點數：${add} 點
-新增後積分：${newPts} 點`))return;
-  await rpc("admin_set_toy_points",{p_token:tok(),p_customer_id:sel.id,p_points:newPts});
+新增後積分：${newPts} 點
+服務人員：${staff}`))return;
+  const noteWithStaff=n?`${n} | 服務：${staff}`:`服務：${staff}`;
+  await rpc("admin_add_toy_points",{p_token:tok(),p_customer_id:sel.id,p_points:add,p_date:d,p_note:noteWithStaff});
   await loadAll(); sel=custs.find(c=>c.id===sel.id); render(); swT("T");
 }
 
