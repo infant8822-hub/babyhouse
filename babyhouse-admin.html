@@ -226,10 +226,12 @@ function itemSelect(id,val=""){
   </select>`;
 }
 
-async function api(p,m="GET",b){
-  const r=await fetch(SU+"/rest/v1/"+p,{method:m,headers:{...H,"Prefer":"return=representation"},body:b?JSON.stringify(b):undefined});
+function tok(){return (currentUser&&currentUser.token)||"";}
+async function rpc(fn,params={}){
+  const r=await fetch(SU+"/rest/v1/rpc/"+fn,{method:"POST",headers:H,body:JSON.stringify(params)});
   if(!r.ok)throw new Error(await r.text());
-  return m==="DELETE"?null:r.json();
+  if(r.status===204) return null;
+  return r.json();
 }
 
 // ── 狀態 ────────────────────────────────────────────────────────
@@ -275,6 +277,7 @@ function showAdmin(){
 
 function doLogout(){
   if(!confirm("確定要登出？"))return;
+  rpc("staff_logout",{p_token:tok()}).catch(()=>{});
   currentUser=null;
   localStorage.removeItem("babyhouse_user");
   document.getElementById("adminPage").style.display="none";
@@ -289,17 +292,10 @@ function doLogout(){
 // ── 載入資料 ────────────────────────────────────────────────────
 async function loadAll(){
   try{
-    [custs,deps,wds,toys]=await Promise.all([
-      api("customers?select=*&order=created_at.desc"),
-      api("milk_deposits?select=*"),
-      api("milk_withdrawals?select=*"),
-      api("toy_exchanges?select=*"),
-    ]);
-    // 公告資料表獨立載入，失敗不影響主系統
-    try{
-      const ann=await api("announcements?select=*");
-      window._announcements=ann||[];
-    }catch{window._announcements=[];}
+    const d=await rpc("admin_get_dashboard",{p_token:tok()});
+    custs=(d.customers||[]).sort((a,b)=>b.created_at.localeCompare(a.created_at));
+    deps=d.deposits||[]; wds=d.withdrawals||[]; toys=d.toys||[];
+    window._announcements=d.announcements||[];
     render();
     checkBackupReminder();
   }catch(e){document.getElementById("mc").innerHTML=`<div class="card" style="color:red">載入失敗：${e.message}</div>`;}
@@ -461,8 +457,7 @@ async function saveNew(){
   if(!q||q<=0){alert("請填寫首次寄入數量");return;}
   document.getElementById("bSv").textContent="儲存中…";
   try{
-    const [c]=await api("customers","POST",{name:n,phone:ph,brand:"",item:it,note:no,toy_points:pt,store:"彰化門市"});
-    await api("milk_deposits","POST",{customer_id:c.id,qty:q,date:dt,note:""});
+    await rpc("admin_add_customer",{p_token:tok(),p_name:n,p_phone:ph,p_item:it,p_note:no,p_toy_points:pt,p_qty:q,p_date:dt});
     await loadAll(); showV("dash");
   }catch(e){alert("儲存失敗："+e.message);document.getElementById("bSv").textContent="儲存";}
 }
@@ -659,7 +654,7 @@ async function doDeposit(){
 品項：${sel.brand} ${sel.item}
 入庫數量：${q} 罐
 日期：${d}`))return;
-  await api("milk_deposits","POST",{customer_id:sel.id,qty:q,date:d,note:n});
+  await rpc("admin_add_deposit",{p_token:tok(),p_customer_id:sel.id,p_qty:q,p_date:d,p_note:n});
   await loadAll(); sel=custs.find(c=>c.id===sel.id); render(); swT("M");
 }
 
@@ -678,9 +673,9 @@ async function doW(){
   if(!exists){alert("找不到此員編，請確認帳號是否正確");return;}
   if(!confirm(`確認客人取貨？\n\n客人：${sel.name}\n品項：${sel.item}\n取出數量：${q} 罐\n取後剩餘：${r-q} 罐\n服務人員：${staff}`))return;
   const itemNote=sel.item+(n?` | ${n}`:"")+` | 服務：${staff}`;
-  const [rec]=await api("milk_withdrawals","POST",{customer_id:sel.id,qty:q,date:d,note:itemNote,signature_url:""});
+  const recId=await rpc("admin_add_withdrawal",{p_token:tok(),p_customer_id:sel.id,p_qty:q,p_date:d,p_note:itemNote});
   await loadAll(); sel=custs.find(c=>c.id===sel.id); render(); swT("M");
-  openQR(rec.id,q,r-q);
+  openQR(recId,q,r-q);
 }
 
 // ── 玩具操作 ────────────────────────────────────────────────────
@@ -698,11 +693,10 @@ async function doToyOut(){
   const exists=await check.json();
   if(!exists){alert("找不到此員編，請確認帳號是否正確");return;}
   if(!confirm(`確認客人取玩具？\n\n客人：${sel.name}\n玩具：${name||"未填寫"}\n取出：${qty} 件\n剩餘積分：${pts-qty} 點\n服務人員：${staff}`))return;
-  await api(`customers?id=eq.${sel.id}`,"PATCH",{toy_points:pts-qty});
   const noteWithStaff=no?`${no} | 服務：${staff}`:`服務：${staff}`;
-  const [rec]=await api("toy_exchanges","POST",{customer_id:sel.id,name:name||"玩具",qty,exchange_date:d,note:noteWithStaff,signature_url:""});
+  const recId=await rpc("admin_toy_out",{p_token:tok(),p_customer_id:sel.id,p_name:name||"玩具",p_qty:qty,p_date:d,p_note:noteWithStaff,p_new_points:pts-qty});
   await loadAll(); sel=custs.find(c=>c.id===sel.id); render(); swT("T");
-  openToyQR(rec.id,name||"玩具",qty);
+  openToyQR(recId,name||"玩具",qty);
 }
 
 async function doAddPts(){
@@ -714,7 +708,7 @@ async function doAddPts(){
 客人：${sel.name}
 新增點數：${add} 點
 新增後積分：${newPts} 點`))return;
-  await api(`customers?id=eq.${sel.id}`,"PATCH",{toy_points:newPts});
+  await rpc("admin_set_toy_points",{p_token:tok(),p_customer_id:sel.id,p_points:newPts});
   await loadAll(); sel=custs.find(c=>c.id===sel.id); render(); swT("T");
 }
 
@@ -782,7 +776,7 @@ function closePt(){document.getElementById("ptM").classList.remove("show");}
 async function savePt(){
   const p=parseInt(document.getElementById("ptI").value);
   if(isNaN(p)||p<0){alert("請輸入有效積分");return;}
-  await api(`customers?id=eq.${ptId}`,"PATCH",{toy_points:p});
+  await rpc("admin_set_toy_points",{p_token:tok(),p_customer_id:ptId,p_points:p});
   await loadAll(); sel=custs.find(c=>c.id===sel.id); closePt(); render(); swT("T");
 }
 
@@ -795,18 +789,17 @@ function closeItemM(){document.getElementById("itemM").classList.remove("show");
 async function saveItem(){
   const it=document.getElementById("itemSel").value;
   if(!it){alert("請選擇品項");return;}
-  await api(`customers?id=eq.${sel.id}`,"PATCH",{item:it});
+  await rpc("admin_set_customer_item",{p_token:tok(),p_customer_id:sel.id,p_item:it});
   await loadAll(); sel=custs.find(c=>c.id===sel.id); closeItemM(); render();
 }
 
 // ── 刪除 ─────────────────────────────────────────────────────────
-async function delCust(){
-  const pw=prompt("請輸入刪除密碼：");
-  if(pw===null) return;
-  if(pw!=="0000"){alert("密碼錯誤，無法刪除");return;}
-  if(!confirm(`確定要刪除「${sel.name}」的所有寄庫紀錄？`))return;
-  await api(`customers?id=eq.${sel.id}`,"DELETE");
-  await loadAll(); showV("dash");
+function delCust(){
+  if(!confirm(`確定要刪除「${sel.name}」的所有寄庫紀錄？此動作無法復原。`))return;
+  showOpM("🔐 請確認管理員身分",`即將刪除客人：<b>${sel.name}</b> 的所有紀錄`,async()=>{
+    await rpc("admin_delete_customer",{p_token:tok(),p_customer_id:sel.id});
+    await loadAll(); showV("dash");
+  });
 }
 
 // ── 操作者確認 Modal ──────────────────────────────────────────────
@@ -899,24 +892,18 @@ async function editItemAnnouncement(itemName){
 （清空後儲存可刪除公告）`,current);
   if(newContent===null) return;
   try{
-    if(newContent.trim()===""){
-      if(existing) await api(`announcements?id=eq.${existing.id}`,"DELETE");
-    }else if(existing){
-      await api(`announcements?id=eq.${existing.id}`,"PATCH",{content:newContent.trim()});
-    }else{
-      await api("announcements","POST",{item:itemName,content:newContent.trim()});
-    }
+    await rpc("admin_set_item_announcement",{p_token:tok(),p_item:itemName,p_content:newContent.trim()});
     await loadAll();
     alert("公告已設定！");
   }catch(e){
-    alert("設定公告失敗，資料庫可能尚未完全更新，請稍後再試。");
+    alert("設定公告失敗，請稍後再試。");
   }
 }
 
 async function saveCustAnnouncement(){
   const content=document.getElementById("custAnnounce").value.trim();
   try{
-    await api(`customers?id=eq.${sel.id}`,"PATCH",{announcement:content});
+    await rpc("admin_set_customer_announcement",{p_token:tok(),p_customer_id:sel.id,p_content:content});
     await loadAll(); sel=custs.find(c=>c.id===sel.id);
     alert("公告已儲存！");
   }catch(e){

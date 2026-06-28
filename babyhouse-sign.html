@@ -113,11 +113,10 @@ async function sub(){
   btn.textContent="送出中…"; btn.disabled=true;
   const du=cv.toDataURL("image/png");
   try{
-    const table = type==="toy" ? "toy_exchanges" : "milk_withdrawals";
-    await fetch(SU+"/rest/v1/"+table+"?id=eq."+recId,{
-      method:"PATCH",
-      headers:{...H,"Prefer":"return=representation"},
-      body:JSON.stringify({signature_url:du})
+    await fetch(SU+"/rest/v1/rpc/public_submit_signature",{
+      method:"POST",
+      headers:H,
+      body:JSON.stringify({p_id:recId,p_type:type,p_signature:du})
     });
     document.getElementById("sc").innerHTML=`
 <div class="sw">

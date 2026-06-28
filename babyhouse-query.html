@@ -68,25 +68,18 @@ async function doSearch(){
   if(!raw)return;
   document.getElementById("result").innerHTML='<div style="text-align:center;padding:20px;color:#6B7280">查詢中…</div>';
   try{
-    const res=await fetch(`${SUPA_URL}/rest/v1/customers?phone=eq.${encodeURIComponent(raw)}&select=*`,{headers:h});
-    const custs=await res.json();
-    if(!custs.length){
+    const res=await fetch(`${SUPA_URL}/rest/v1/rpc/public_customer_lookup`,{method:"POST",headers:{...h,"Content-Type":"application/json"},body:JSON.stringify({p_phone:raw})});
+    const c=await res.json();
+    if(!c){
       document.getElementById("result").innerHTML='<div class="not-found">查無此電話的寄庫紀錄<br><span style="font-size:13px;font-weight:400;margin-top:4px;display:block">請洽詢店員，謝謝 🙏</span></div>';
       return;
     }
-    const c=custs[0];
-    const [deps,wds,toys]=await Promise.all([
-      fetch(`${SUPA_URL}/rest/v1/milk_deposits?customer_id=eq.${c.id}&select=*`,{headers:h}).then(r=>r.json()),
-      fetch(`${SUPA_URL}/rest/v1/milk_withdrawals?customer_id=eq.${c.id}&select=*`,{headers:h}).then(r=>r.json()),
-      fetch(`${SUPA_URL}/rest/v1/toy_exchanges?customer_id=eq.${c.id}&select=*`,{headers:h}).then(r=>r.json()),
-    ]);
-    let itemAnns=[];
-    try{itemAnns=await fetch(`${SUPA_URL}/rest/v1/announcements?select=*`,{headers:h}).then(r=>r.json());}catch{}
-    const milkRem=deps.reduce((s,d)=>s+d.qty,0)-wds.reduce((s,d)=>s+d.qty,0);
-    const activeEx=toys.filter(t=>!t.return_date);
+    const milkRem=c.milk_remaining;
+    const activeEx=c.active_toys||[];
     const mc=milkRem===0?"box-red":milkRem<=2?"box-orange":"box-green";
     const warn=milkRem===0?'<div class="warn warn-red">❗ 奶粉已全部取出，請補貨或洽詢店員</div>':
       milkRem<=2?`<div class="warn warn-orange">⚠️ 奶粉快沒囉！剩 ${milkRem} 罐，請記得補貨</div>`:"";
+    const annHTML=c.announcement?`<div class="brand-box" style="background:#FFF9E6;color:#B7791F">📢 ${c.announcement}</div>`:"";
     const toyHTML=activeEx.length?`
 <div class="card">
   <div class="section-title">🟡 玩具兌換中（${activeEx.length} 件）</div>
@@ -101,6 +94,7 @@ async function doSearch(){
     <div class="stat-box box-purple"><div class="num">${c.toy_points||0}</div><div class="lbl">🧸 玩具積分（點）</div></div>
   </div>
   <div class="brand-box">奶粉品牌：<b>${c.brand}</b>　品項：<b>${c.item}</b>${c.note?`<br>備註：${c.note}`:""}</div>
+  ${annHTML}
   ${warn}
 </div>
 ${toyHTML}
