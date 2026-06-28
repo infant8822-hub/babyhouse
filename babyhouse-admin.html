@@ -128,7 +128,10 @@ input:focus,select:focus{border-color:var(--p)}
     <div class="qi" id="qrInfo"></div>
     <div class="qrw"><div id="qrcode"></div></div>
     <p style="text-align:center;color:var(--sub);font-size:12px;margin-bottom:14px">出示給客人掃描，客人簽名後自動完成</p>
-    <button class="btn bs" onclick="closeQR()">關閉</button>
+    <div style="display:flex;gap:8px;margin-bottom:0">
+      <button class="btn bs" style="flex:1" onclick="closeQR()">關閉</button>
+      <button id="copyLinkBtn" class="btn bp" style="flex:2" onclick="copyQRLink()">📋 複製連結</button>
+    </div>
   </div>
 </div>
 
@@ -379,7 +382,7 @@ function rrHTML(c){
   return `<div class="rr" onclick="openD('${c.id}')">
     <div class="av">${c.name.slice(0,1)}</div>
     <div class="ri"><div class="rn">${c.name}<span class="rp">${c.phone}</span></div>
-    <div class="rs">🍼 ${c.brand} ${c.item}</div></div>
+    <div class="rs">🍼 ${c.item}</div></div>
     <div class="tgs"><span class="tg ${tc}">奶粉 ${r} 罐</span>${tp>0?`<span class="tg tgu">🧸 ${tp}點</span>`:""}</div>
     <span class="arr">›</span>
   </div>`;
@@ -419,8 +422,6 @@ function renderAdd(){
   <h2 style="margin-bottom:14px;font-size:15px">🆕 新增寄庫客人</h2>
   <div class="lbl">姓名</div><input id="fN" placeholder="王小明">
   <div class="lbl">電話</div><input id="fPh" placeholder="0912345678" type="tel">
-  <div class="lbl">奶粉品牌</div>
-  <div style="background:var(--pl);border-radius:10px;padding:10px 13px;font-size:14px;font-weight:700;color:var(--p);margin-bottom:10px">卡洛塔妮</div>
   <div class="lbl">品項</div>${itemSelect("fIt")}
   <div class="g2">
     <div><div class="lbl">首次寄入（罐）</div><input id="fQ" type="number" min="1" placeholder="6"></div>
@@ -447,7 +448,7 @@ async function saveNew(){
   if(!q||q<=0){alert("請填寫首次寄入數量");return;}
   document.getElementById("bSv").textContent="儲存中…";
   try{
-    const [c]=await api("customers","POST",{name:n,phone:ph,brand:BRAND,item:it,note:no,toy_points:pt,store:"彰化門市"});
+    const [c]=await api("customers","POST",{name:n,phone:ph,brand:"",item:it,note:no,toy_points:pt,store:"彰化門市"});
     await api("milk_deposits","POST",{customer_id:c.id,qty:q,date:dt,note:""});
     await loadAll(); showV("dash");
   }catch(e){alert("儲存失敗："+e.message);document.getElementById("bSv").textContent="儲存";}
@@ -522,7 +523,7 @@ function renderDetail(){
     </div>
   </div>
   <div class="ib">
-    <div>${c.brand}　<b>${c.item}</b>${c.note?`<br><span style="font-size:12px">備註：${c.note}</span>`:""}</div>
+    <div><b>${c.item}</b>${c.note?`<br><span style="font-size:12px">備註：${c.note}</span>`:""}</div>
     <button onclick="changeItem()" style="background:var(--p);color:#fff;border:none;border-radius:8px;padding:5px 12px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;flex-shrink:0">換品項</button>
   </div>
 </div>
@@ -541,6 +542,8 @@ function renderDetail(){
       <div><div class="lbl">日期</div><input id="wD" type="date" value="${today()}"></div>
     </div>
     <div class="lbl">備註</div><input id="wN" placeholder="備註（選填）">
+    <div class="lbl">服務人員員編 <span style="color:var(--r)">*必填</span></div>
+    <input id="wStaff" placeholder="請輸入員編（登入帳號）">
     <button class="btn bp" onclick="doW()">取出＋QR Code</button>
   </div>
   <div class="dbox">
@@ -567,6 +570,8 @@ function renderDetail(){
     </div>
     <div class="lbl">玩具名稱</div><input id="tyN" placeholder="費雪跳跳馬…">
     <div class="lbl">備註</div><input id="tyNo" placeholder="備註（選填）">
+    <div class="lbl">服務人員員編 <span style="color:var(--r)">*必填</span></div>
+    <input id="tyStaff" placeholder="請輸入員編（登入帳號）">
     <button class="btn bp" onclick="doToyOut()">取出＋QR Code</button>
   </div>
   <div class="dbox">
@@ -641,11 +646,18 @@ async function doW(){
   const q=parseInt(document.getElementById("wQ").value);
   const d=document.getElementById("wD").value;
   const n=document.getElementById("wN").value.trim();
+  const staff=document.getElementById("wStaff").value.trim();
   const r=mRem(sel.id);
   if(!q||q<=0){alert("請輸入正確數量");return;}
   if(q>r){alert(`庫存僅剩 ${r} 罐`);return;}
-  if(!confirm(`確認客人取貨？\n\n客人：${sel.name}\n品項：${sel.brand} ${sel.item}\n取出數量：${q} 罐\n取後剩餘：${r-q} 罐`))return;
-  const [rec]=await api("milk_withdrawals","POST",{customer_id:sel.id,qty:q,date:d,note:n,signature_url:""});
+  if(!staff){alert("請輸入服務人員員編");return;}
+  // 驗證員編是否存在
+  const check=await fetch(SU+"/rest/v1/staff_accounts?username=eq."+encodeURIComponent(staff)+"&select=id",{headers:{"apikey":SK,"Authorization":"Bearer "+SK}});
+  const checkData=await check.json();
+  if(!checkData||!checkData.length){alert("找不到此員編，請確認帳號是否正確");return;}
+  if(!confirm(`確認客人取貨？\n\n客人：${sel.name}\n品項：${sel.item}\n取出數量：${q} 罐\n取後剩餘：${r-q} 罐\n服務人員：${staff}`))return;
+  const itemNote=sel.item+(n?` | ${n}`:"")+` | 服務：${staff}`;
+  const [rec]=await api("milk_withdrawals","POST",{customer_id:sel.id,qty:q,date:d,note:itemNote,signature_url:""});
   await loadAll(); sel=custs.find(c=>c.id===sel.id); render(); swT("M");
   openQR(rec.id,q,r-q);
 }
@@ -656,12 +668,18 @@ async function doToyOut(){
   const name=document.getElementById("tyN").value.trim();
   const d=document.getElementById("tyD").value;
   const no=document.getElementById("tyNo").value.trim();
+  const staff=document.getElementById("tyStaff").value.trim();
   const pts=sel.toy_points||0;
   if(!qty||qty<=0){alert("請輸入正確數量");return;}
   if(qty>pts){alert(`積分僅剩 ${pts} 點`);return;}
-  if(!confirm(`確認客人取玩具？\n\n客人：${sel.name}\n玩具：${name||"未填寫"}\n取出：${qty} 件\n剩餘積分：${pts-qty} 點`))return;
+  if(!staff){alert("請輸入服務人員員編");return;}
+  const check=await fetch(SU+"/rest/v1/staff_accounts?username=eq."+encodeURIComponent(staff)+"&select=id",{headers:{"apikey":SK,"Authorization":"Bearer "+SK}});
+  const checkData=await check.json();
+  if(!checkData||!checkData.length){alert("找不到此員編，請確認帳號是否正確");return;}
+  if(!confirm(`確認客人取玩具？\n\n客人：${sel.name}\n玩具：${name||"未填寫"}\n取出：${qty} 件\n剩餘積分：${pts-qty} 點\n服務人員：${staff}`))return;
   await api(`customers?id=eq.${sel.id}`,"PATCH",{toy_points:pts-qty});
-  const [rec]=await api("toy_exchanges","POST",{customer_id:sel.id,name:name||"玩具",qty,exchange_date:d,note:no,signature_url:""});
+  const noteWithStaff=no?`${no} | 服務：${staff}`:`服務：${staff}`;
+  const [rec]=await api("toy_exchanges","POST",{customer_id:sel.id,name:name||"玩具",qty,exchange_date:d,note:noteWithStaff,signature_url:""});
   await loadAll(); sel=custs.find(c=>c.id===sel.id); render(); swT("T");
   openToyQR(rec.id,name||"玩具",qty);
 }
@@ -680,24 +698,45 @@ async function doAddPts(){
 }
 
 // ── QR Code ─────────────────────────────────────────────────────
+let currentQRUrl="";
 function openQR(recId,qty,rem){
   const params=new URLSearchParams({id:recId,qty,remaining:rem,name:sel.name,brand:sel.brand,item:sel.item});
-  const url=NETLIFY+"/babyhouse-sign.html?"+params.toString();
+  currentQRUrl=NETLIFY+"/babyhouse-sign.html?"+params.toString();
   document.getElementById("qrInfo").innerHTML=`<b>${sel.name}</b> 取出 <b>${qty} 罐</b> ${sel.brand} ${sel.item}<br>取貨後剩餘：<b>${rem} 罐</b>`;
   document.getElementById("qrcode").innerHTML="";
-  new QRCode(document.getElementById("qrcode"),{text:url,width:220,height:220,correctLevel:QRCode.CorrectLevel.L});
+  new QRCode(document.getElementById("qrcode"),{text:currentQRUrl,width:220,height:220,correctLevel:QRCode.CorrectLevel.L});
   document.getElementById("qrM").classList.add("show");
+}
+function openToyQR(recId,toyName,qty){
+  const params=new URLSearchParams({id:recId,type:"toy",toyName,qty,name:sel.name,brand:sel.brand,item:sel.item});
+  currentQRUrl=NETLIFY+"/babyhouse-sign.html?"+params.toString();
+  document.getElementById("qrInfo").innerHTML=`<b>${sel.name}</b> 取出玩具 <b>${toyName}</b> x ${qty} 件`;
+  document.getElementById("qrcode").innerHTML="";
+  new QRCode(document.getElementById("qrcode"),{text:currentQRUrl,width:220,height:220,correctLevel:QRCode.CorrectLevel.L});
+  document.getElementById("qrM").classList.add("show");
+}
+function copyQRLink(){
+  if(!currentQRUrl){alert("沒有連結可以複製");return;}
+  navigator.clipboard.writeText(currentQRUrl).then(()=>{
+    const btn=document.getElementById("copyLinkBtn");
+    btn.textContent="✅ 已複製！";
+    setTimeout(()=>btn.textContent="📋 複製連結",2000);
+  }).catch(()=>{
+    // fallback
+    const ta=document.createElement("textarea");
+    ta.value=currentQRUrl;
+    document.body.appendChild(ta);
+    ta.select();
+    document.execCommand("copy");
+    document.body.removeChild(ta);
+    const btn=document.getElementById("copyLinkBtn");
+    btn.textContent="✅ 已複製！";
+    setTimeout(()=>btn.textContent="📋 複製連結",2000);
+  });
 }
 function closeQR(){document.getElementById("qrM").classList.remove("show");}
 
-function openToyQR(recId,toyName,qty){
-  const params=new URLSearchParams({id:recId,type:"toy",toyName,qty,name:sel.name,brand:sel.brand,item:sel.item});
-  const url=NETLIFY+"/babyhouse-sign.html?"+params.toString();
-  document.getElementById("qrInfo").innerHTML=`<b>${sel.name}</b> 取出玩具 <b>${toyName}</b> x ${qty} 件`;
-  document.getElementById("qrcode").innerHTML="";
-  new QRCode(document.getElementById("qrcode"),{text:url,width:220,height:220,correctLevel:QRCode.CorrectLevel.L});
-  document.getElementById("qrM").classList.add("show");
-}
+
 
 function viewSign(wid,type){
   const arr=type==="toy"?toys:wds;
@@ -727,7 +766,10 @@ async function savePt(){
 }
 
 // ── 換品項 ────────────────────────────────────────────────────────
-function changeItem(){document.getElementById("itemSelectWrap").innerHTML=itemSelect("itemSel",sel.item);document.getElementById("itemM").classList.add("show");}
+function changeItem(){
+  document.getElementById("itemSelectWrap").innerHTML=itemSelect("itemSel",sel.item);
+  document.getElementById("itemM").classList.add("show");
+}
 function closeItemM(){document.getElementById("itemM").classList.remove("show");}
 async function saveItem(){
   const it=document.getElementById("itemSel").value;
