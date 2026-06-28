@@ -882,22 +882,30 @@ async function editItemAnnouncement(itemName){
   const newContent=prompt(`設定「${itemName}」的品項公告：
 （清空後儲存可刪除公告）`,current);
   if(newContent===null) return;
-  if(newContent.trim()===""){
-    // 刪除公告
-    if(existing) await api(`announcements?id=eq.${existing.id}`,"DELETE");
-  }else if(existing){
-    await api(`announcements?id=eq.${existing.id}`,"PATCH",{content:newContent.trim()});
-  }else{
-    await api("announcements","POST",{item:itemName,content:newContent.trim()});
+  try{
+    if(newContent.trim()===""){
+      if(existing) await api(`announcements?id=eq.${existing.id}`,"DELETE");
+    }else if(existing){
+      await api(`announcements?id=eq.${existing.id}`,"PATCH",{content:newContent.trim()});
+    }else{
+      await api("announcements","POST",{item:itemName,content:newContent.trim()});
+    }
+    await loadAll();
+    alert("公告已設定！");
+  }catch(e){
+    alert("設定公告失敗，資料庫可能尚未完全更新，請稍後再試。");
   }
-  await loadAll();
 }
 
 async function saveCustAnnouncement(){
   const content=document.getElementById("custAnnounce").value.trim();
-  await api(`customers?id=eq.${sel.id}`,"PATCH",{announcement:content});
-  await loadAll(); sel=custs.find(c=>c.id===sel.id);
-  alert("公告已儲存！");
+  try{
+    await api(`customers?id=eq.${sel.id}`,"PATCH",{announcement:content});
+    await loadAll(); sel=custs.find(c=>c.id===sel.id);
+    alert("公告已儲存！");
+  }catch(e){
+    alert("儲存公告失敗，請稍後再試："+e.message);
+  }
 }
 
 // ── 匯出 Excel ───────────────────────────────────────────────────
