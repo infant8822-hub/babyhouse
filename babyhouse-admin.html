@@ -627,13 +627,14 @@ async function doDeposit(){
   const d=document.getElementById("dD").value;
   const n=document.getElementById("dN").value.trim();
   if(!q||q<=0){alert("請輸入正確數量");return;}
-  showOpM("確認補貨入庫",
-    `客人：<b>${sel.name}</b><br>品項：${sel.brand} ${sel.item}<br>入庫數量：<b>${q} 罐</b><br>日期：${d}`,
-    async function(operator){
-      await api("milk_deposits","POST",{customer_id:sel.id,qty:q,date:d,note:n,operator});
-      await loadAll(); sel=custs.find(c=>c.id===sel.id); render(); swT("M");
-    }
-  );
+  if(!confirm(`確認補貨入庫？
+
+客人：${sel.name}
+品項：${sel.brand} ${sel.item}
+入庫數量：${q} 罐
+日期：${d}`))return;
+  await api("milk_deposits","POST",{customer_id:sel.id,qty:q,date:d,note:n,operator:currentUser?currentUser.username:""});
+  await loadAll(); sel=custs.find(c=>c.id===sel.id); render(); swT("M");
 }
 
 async function doW(){
@@ -669,13 +670,13 @@ async function doAddPts(){
   const add=parseInt(document.getElementById("tpAdd").value);
   if(!add||add<=0){alert("請輸入正確點數");return;}
   const newPts=(sel.toy_points||0)+add;
-  showOpM("確認新增玩具積分",
-    `客人：<b>${sel.name}</b><br>新增點數：<b>${add} 點</b><br>新增後積分：<b>${newPts} 點</b>`,
-    async function(operator){
-      await api(`customers?id=eq.${sel.id}`,"PATCH",{toy_points:newPts});
-      await loadAll(); sel=custs.find(c=>c.id===sel.id); render(); swT("T");
-    }
-  );
+  if(!confirm(`確認新增玩具積分？
+
+客人：${sel.name}
+新增點數：${add} 點
+新增後積分：${newPts} 點`))return;
+  await api(`customers?id=eq.${sel.id}`,"PATCH",{toy_points:newPts});
+  await loadAll(); sel=custs.find(c=>c.id===sel.id); render(); swT("T");
 }
 
 // ── QR Code ─────────────────────────────────────────────────────
