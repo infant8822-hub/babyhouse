@@ -44,6 +44,22 @@ main{max-width:720px;margin:0 auto;padding:16px 13px 80px}
 .tgg{background:var(--gl);color:var(--g)}.tgo{background:var(--al);color:var(--a)}.tgr{background:var(--rl);color:var(--r)}.tgu{background:var(--ul);color:var(--u)}
 .arr{color:var(--bd);font-size:15px}
 .empty{text-align:center;color:var(--sub);padding:32px 0;font-size:13px}
+/* 登入頁 */
+.login-wrap{min-height:100vh;display:flex;align-items:center;justify-content:center;background:#FDF8F4;padding:20px}
+.login-box{background:#fff;border-radius:18px;padding:32px 24px;max-width:360px;width:100%;box-shadow:0 4px 20px rgba(0,0,0,0.10)}
+.login-logo{text-align:center;font-size:48px;margin-bottom:8px}
+.login-title{text-align:center;font-weight:800;font-size:20px;margin-bottom:4px}
+.login-sub{text-align:center;color:var(--sub);font-size:13px;margin-bottom:24px}
+/* 操作者確認 Modal */
+.op-modal{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:500;align-items:center;justify-content:center;padding:16px}
+.op-modal.show{display:flex}
+.op-box{background:#fff;border-radius:16px;padding:22px;max-width:360px;width:100%}
+.op-box h3{font-size:15px;margin-bottom:14px}
+/* 帳號管理 */
+.acc-row{display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--bd)}
+.acc-row:last-child{border-bottom:none}
+.badge-admin{background:var(--al);color:var(--a);border-radius:20px;padding:2px 10px;font-size:11px;font-weight:700}
+.badge-staff{background:var(--gl);color:var(--g);border-radius:20px;padding:2px 10px;font-size:11px;font-weight:700}
 input,select{width:100%;border:1.5px solid var(--bd);border-radius:10px;padding:10px 12px;font-size:14px;color:#1A1A2E;background:#fff;outline:none;font-family:inherit;margin-bottom:10px}
 input:focus,select:focus{border-color:var(--p)}
 .lbl{font-size:12px;font-weight:600;color:var(--sub);margin-bottom:3px}
@@ -89,6 +105,7 @@ input:focus,select:focus{border-color:var(--p)}
 </header>
 <main id="mc"><div class="empty">載入中…</div></main>
 
+</div><!-- /appWrap -->
 <!-- QR Modal -->
 <div class="mbg" id="qrM">
   <div class="modal">
@@ -170,10 +187,14 @@ async function api(p,m="GET",b){
   return m==="DELETE"?null:r.json();
 }
 
-let custs=[],deps=[],wds=[],toys=[];
+let custs=[],deps=[],wds=[],toys=[],staffAccounts=[];
 let view="dash",sel=null,sq="",ptId=null;
+let currentUser=null; // {id, username, role}
+// 操作者確認 callback
+let opCallback=null;
 
 async function loadAll(){
+  if(!currentUser){showLogin();return;}
   try{
     [custs,deps,wds,toys]=await Promise.all([
       api("customers?select=*&order=created_at.desc"),
@@ -517,6 +538,7 @@ function renderDetail(){
       <div style="flex:1">
         <span style="font-weight:700;color:${h.tp==="in"?"var(--g)":"var(--a)"}">${h.tp==="in"?"＋":"－"}${h.qty} 罐</span>
         ${h.note?`<span style="color:var(--sub);font-size:12px;margin-left:7px">${h.note}</span>`:""}
+        ${h.operator?`<span style="color:var(--p);font-size:12px;margin-left:7px">👤 ${h.operator}</span>`:""}
         ${h.tp==="out"&&h.signature_url?`<button onclick="viewSign('${h.id}')" style="background:none;border:none;color:var(--p);font-size:12px;margin-left:7px;cursor:pointer;text-decoration:underline;font-family:inherit;padding:0">✍️ 查看簽名</button>`:""}
         <div style="color:var(--sub);font-size:11px;margin-top:1px">${h.date}</div>
       </div>
@@ -542,9 +564,13 @@ async function doDeposit(){
   const d=document.getElementById("dD").value;
   const n=document.getElementById("dN").value.trim();
   if(!q||q<=0){alert("請輸入正確數量");return;}
-  if(!confirm(`確認補貨入庫？\n\n客人：${sel.name}\n品項：${sel.brand} ${sel.item}\n入庫數量：${q} 罐\n日期：${d}`))return;
-  await api("milk_deposits","POST",{customer_id:sel.id,qty:q,date:d,note:n});
-  await loadAll(); sel=custs.find(c=>c.id===sel.id); render(); swT("M");
+  showOpConfirm("確認補貨入庫",
+    `客人：<b>${sel.name}</b><br>品項：${sel.brand} ${sel.item}<br>入庫數量：<b>${q} 罐</b><br>日期：${d}`,
+    async function(operator){
+      await api("milk_deposits","POST",{customer_id:sel.id,qty:q,date:d,note:n,operator});
+      await loadAll(); sel=custs.find(c=>c.id===sel.id); render(); swT("M");
+    }
+  );
 }
 
 async function doW(qr){
@@ -617,9 +643,15 @@ async function doAddPts(){
   const note=document.getElementById("tpNote").value.trim();
   if(!add||add<=0){alert("請輸入正確點數");return;}
   const newPts=(sel.toy_points||0)+add;
-  if(!confirm(`確認新增玩具積分？\n\n客人：${sel.name}\n新增點數：${add} 點\n新增後積分：${newPts} 點`))return;
-  await api(`customers?id=eq.${sel.id}`,"PATCH",{toy_points:newPts});
-  await loadAll(); sel=custs.find(c=>c.id===sel.id); render(); swT("T");
+  showOpConfirm("確認新增玩具積分",
+    `客人：<b>${sel.name}</b><br>新增點數：<b>${add} 點</b><br>新增後積分：<b>${newPts} 點</b>`,
+    async function(operator){
+      await api(`customers?id=eq.${sel.id}`,"PATCH",{toy_points:newPts});
+      // 記錄積分新增操作
+      await api("toy_exchanges","POST",{customer_id:sel.id,name:`新增積分 +${add}點`,qty:0,exchange_date:new Date().toISOString().slice(0,10),note:`操作者：${operator}`,operator,signature_url:""});
+      await loadAll(); sel=custs.find(c=>c.id===sel.id); render(); swT("T");
+    }
+  );
 }
 
 async function doToyOut(qr){
@@ -692,16 +724,186 @@ async function delCust(){
 // ── Export ─────────────────────────────────────────────────────
 function exportExcel(){
   const wb=XLSX.utils.book_new();
-  const ov=custs.map(c=>({姓名:c.name,電話:c.phone,奶粉品牌:c.brand,奶粉品項:c.item,目前剩餘:mRem(c.id),玩具積分:c.toy_points||0,玩具兌換中:tAct(c.id),備註:c.note||""}));
+
+  // Sheet1：客人總覽
+  const ov=custs.map(c=>({姓名:c.name,電話:c.phone,奶粉品牌:c.brand,奶粉品項:c.item,目前剩餘:mRem(c.id),玩具積分:c.toy_points||0,備註:c.note||""}));
   XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(ov),"客人總覽");
-  const wd2=wds.map(w=>{const c=custs.find(x=>x.id===w.customer_id)||{};return{姓名:c.name,電話:c.phone,品牌:c.brand,品項:c.item,取出日期:w.date,取出數量:w.qty,備註:w.note||"",有簽名:w.signature_url?"是":"否"};});
-  XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(wd2.length?wd2:[{提示:"目前無紀錄"}]),"奶粉取出紀錄");
-  const td=toys.map(t=>{const c=custs.find(x=>x.id===t.customer_id)||{};return{姓名:c.name,電話:c.phone,玩具名稱:t.name,兌換日期:t.exchange_date,歸還日期:t.return_date||"未歸還",備註:t.note||""};});
-  XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(td.length?td:[{提示:"目前無紀錄"}]),"玩具兌換紀錄");
+
+  // Sheet2：品項庫存統計
+  const itemMap={},itemCount={};
+  custs.forEach(c=>{
+    const r=mRem(c.id);
+    if(r>0){
+      itemMap[c.item]=(itemMap[c.item]||0)+r;
+      itemCount[c.item]=(itemCount[c.item]||0)+1;
+    }
+  });
+  const itemRows=Object.entries(itemMap).sort((a,b)=>b[1]-a[1]).map(([item,qty])=>({品項:item,剩餘庫存:qty,寄庫人數:itemCount[item]||0}));
+  XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(itemRows.length?itemRows:[{提示:"目前無庫存"}]),"品項庫存統計");
+
+  // Sheet3~：每個品項一個分頁，列出該品項客人
+  const allItems=[...new Set(custs.map(c=>c.item).filter(Boolean))].sort();
+  allItems.forEach(item=>{
+    const rows=custs.filter(c=>c.item===item).map(c=>({
+      姓名:c.name, 電話:c.phone, 目前剩餘:mRem(c.id), 玩具積分:c.toy_points||0, 備註:c.note||""
+    })).sort((a,b)=>b.目前剩餘-a.目前剩餘);
+    if(rows.length) XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(rows),item.slice(0,31));
+  });
+
   XLSX.writeFile(wb,`嬰之房寄庫紀錄_${today()}.xlsx`);
 }
 
 loadAll();
+
+// ── 登入系統 ───────────────────────────────────────────────────
+function showLogin(){
+  document.getElementById("appWrap").style.display="none";
+  document.getElementById("loginWrap").style.display="flex";
+}
+function hideLogin(){
+  document.getElementById("loginWrap").style.display="none";
+  document.getElementById("appWrap").style.display="block";
+}
+
+async function doLogin(){
+  const u=document.getElementById("loginUser").value.trim();
+  const p=document.getElementById("loginPass").value.trim();
+  if(!u||!p){alert("請輸入帳號和密碼");return;}
+  const btn=document.getElementById("loginBtn");
+  btn.textContent="驗證中…"; btn.disabled=true;
+  try{
+    const res=await api(`staff_accounts?username=eq.${encodeURIComponent(u)}&password=eq.${encodeURIComponent(p)}&select=*`);
+    if(!res||!res.length){alert("帳號或密碼錯誤");btn.textContent="登入";btn.disabled=false;return;}
+    currentUser=res[0];
+    localStorage.setItem("babyhouse_user",JSON.stringify(currentUser));
+    hideLogin();
+    // 顯示登入者名稱在 header
+    document.getElementById("userLabel").textContent="👤 "+currentUser.username;
+    document.getElementById("userLabel").style.display="inline";
+    // 最高權限才顯示帳號管理
+    if(currentUser.role==="admin") document.getElementById("navAcc").style.display="inline";
+    loadAll();
+  }catch(e){alert("登入失敗："+e.message);btn.textContent="登入";btn.disabled=false;}
+}
+
+function doLogout(){
+  if(!confirm("確定要登出？"))return;
+  currentUser=null;
+  localStorage.removeItem("babyhouse_user");
+  document.getElementById("userLabel").style.display="none";
+  document.getElementById("navAcc").style.display="none";
+  showLogin();
+}
+
+// 操作者確認 Modal（入庫、新增積分用）
+function showOpConfirm(title, desc, callback){
+  opCallback=callback;
+  document.getElementById("opTitle").textContent=title;
+  document.getElementById("opDesc").innerHTML=desc;
+  document.getElementById("opUser").value="";
+  document.getElementById("opPass").value="";
+  document.getElementById("opErr").textContent="";
+  document.getElementById("opModal").classList.add("show");
+}
+function closeOpModal(){
+  document.getElementById("opModal").classList.remove("show");
+  opCallback=null;
+}
+async function confirmOp(){
+  const u=document.getElementById("opUser").value.trim();
+  const p=document.getElementById("opPass").value.trim();
+  if(!u||!p){document.getElementById("opErr").textContent="請輸入帳號和密碼";return;}
+  try{
+    const res=await api(`staff_accounts?username=eq.${encodeURIComponent(u)}&password=eq.${encodeURIComponent(p)}&select=*`);
+    if(!res||!res.length){document.getElementById("opErr").textContent="帳號或密碼錯誤";return;}
+    const operator=res[0].username;
+    closeOpModal();
+    if(opCallback) opCallback(operator);
+  }catch(e){document.getElementById("opErr").textContent="驗證失敗："+e.message;}
+}
+
+// ── 帳號管理 ───────────────────────────────────────────────────
+async function loadAccounts(){
+  staffAccounts=await api("staff_accounts?select=*&order=created_at.asc");
+  renderAccounts();
+}
+function renderAccounts(){
+  const list=document.getElementById("accList");
+  list.innerHTML=staffAccounts.map(a=>`
+    <div class="acc-row">
+      <div>
+        <span style="font-weight:700;font-size:14px">${a.username}</span>
+        <span class="${a.role==="admin"?"badge-admin":"badge-staff"}" style="margin-left:8px">${a.role==="admin"?"最高權限":"一般員工"}</span>
+      </div>
+      ${a.role!=="admin"?`<button onclick="delAccount('${a.id}','${a.username}')" style="background:none;border:1px solid var(--r);color:var(--r);border-radius:8px;padding:4px 10px;font-size:12px;cursor:pointer;font-family:inherit">刪除</button>`:"<span></span>"}
+    </div>`).join("");
+}
+async function addAccount(){
+  const u=document.getElementById("newAccUser").value.trim();
+  const p=document.getElementById("newAccPass").value.trim();
+  if(!u||!p){alert("請填寫帳號和密碼");return;}
+  if(staffAccounts.find(a=>a.username===u)){alert("此帳號已存在");return;}
+  await api("staff_accounts","POST",{username:u,password:p,role:"staff"});
+  document.getElementById("newAccUser").value="";
+  document.getElementById("newAccPass").value="";
+  await loadAccounts();
+}
+async function delAccount(id,name){
+  if(!confirm(`確定要刪除帳號「${name}」？`))return;
+  await api(`staff_accounts?id=eq.${id}`,"DELETE");
+  await loadAccounts();
+}
+
 </script>
+
+<!-- 登入頁 -->
+<div class="login-wrap" id="loginWrap" style="display:none">
+  <div class="login-box">
+    <div class="login-logo">🍼</div>
+    <div class="login-title">嬰之房｜寄庫管理</div>
+    <div class="login-sub">請登入後使用</div>
+    <div class="lbl">帳號</div>
+    <input id="loginUser" placeholder="請輸入帳號" style="margin-bottom:10px" onkeydown="if(event.key==='Enter')document.getElementById('loginPass').focus()">
+    <div class="lbl">密碼</div>
+    <input id="loginPass" type="password" placeholder="請輸入密碼" style="margin-bottom:16px" onkeydown="if(event.key==='Enter')doLogin()">
+    <button id="loginBtn" onclick="doLogin()" style="width:100%;background:var(--p);color:#fff;border:none;border-radius:10px;padding:13px;font-size:15px;font-weight:700;cursor:pointer;font-family:inherit">登入</button>
+  </div>
+</div>
+
+<!-- 操作者確認 Modal -->
+<div class="op-modal" id="opModal">
+  <div class="op-box">
+    <h3 id="opTitle">請輸入帳號密碼確認</h3>
+    <div id="opDesc" style="background:var(--pl);border-radius:10px;padding:10px 13px;font-size:13px;margin-bottom:14px;line-height:1.8"></div>
+    <div class="lbl">帳號</div>
+    <input id="opUser" placeholder="帳號" style="margin-bottom:8px">
+    <div class="lbl">密碼</div>
+    <input id="opPass" type="password" placeholder="密碼" style="margin-bottom:6px" onkeydown="if(event.key==='Enter')confirmOp()">
+    <div id="opErr" style="color:var(--r);font-size:12px;min-height:18px;margin-bottom:10px"></div>
+    <div style="display:flex;gap:8px">
+      <button onclick="closeOpModal()" style="flex:1;background:var(--bd);color:#1A1A2E;border:none;border-radius:10px;padding:11px;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit">取消</button>
+      <button onclick="confirmOp()" style="flex:2;background:var(--p);color:#fff;border:none;border-radius:10px;padding:11px;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit">確認</button>
+    </div>
+  </div>
+</div>
+
+<!-- 帳號管理 Modal -->
+<div class="mbg" id="accModal">
+  <div class="modal">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
+      <h2 style="margin:0">👥 帳號管理</h2>
+      <button onclick="document.getElementById('accModal').classList.remove('show')" style="background:none;border:none;font-size:22px;cursor:pointer;color:var(--sub)">✕</button>
+    </div>
+    <div style="font-weight:700;font-size:13px;color:var(--sub);margin-bottom:10px">新增員工帳號</div>
+    <div style="display:flex;gap:8px;margin-bottom:6px">
+      <input id="newAccUser" placeholder="帳號" style="margin-bottom:0;flex:1">
+      <input id="newAccPass" placeholder="密碼" style="margin-bottom:0;flex:1">
+    </div>
+    <button onclick="addAccount()" style="width:100%;background:var(--g);color:#fff;border:none;border-radius:10px;padding:10px;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;margin-bottom:16px">新增帳號</button>
+    <div style="font-weight:700;font-size:13px;color:var(--sub);margin-bottom:8px">目前帳號</div>
+    <div id="accList"></div>
+  </div>
+</div>
+
 </body>
 </html>
