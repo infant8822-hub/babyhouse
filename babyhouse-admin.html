@@ -287,15 +287,17 @@ function doLogout(){
 // ── 載入資料 ────────────────────────────────────────────────────
 async function loadAll(){
   try{
-    let announcements_data=[];
-    [custs,deps,wds,toys,announcements_data]=await Promise.all([
+    [custs,deps,wds,toys]=await Promise.all([
       api("customers?select=*&order=created_at.desc"),
       api("milk_deposits?select=*"),
       api("milk_withdrawals?select=*"),
       api("toy_exchanges?select=*"),
-      api("announcements?select=*"),
     ]);
-    window._announcements=announcements_data;
+    // 公告資料表獨立載入，失敗不影響主系統
+    try{
+      const ann=await api("announcements?select=*");
+      window._announcements=ann||[];
+    }catch{window._announcements=[];}
     render();
     checkBackupReminder();
   }catch(e){document.getElementById("mc").innerHTML=`<div class="card" style="color:red">載入失敗：${e.message}</div>`;}
