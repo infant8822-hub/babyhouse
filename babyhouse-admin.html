@@ -448,7 +448,7 @@ async function saveNew(){
   document.getElementById("bSv").textContent="儲存中…";
   try{
     const [c]=await api("customers","POST",{name:n,phone:ph,brand:BRAND,item:it,note:no,toy_points:pt,store:"彰化門市"});
-    await api("milk_deposits","POST",{customer_id:c.id,qty:q,date:dt,note:"",operator:currentUser?currentUser.username:""});
+    await api("milk_deposits","POST",{customer_id:c.id,qty:q,date:dt,note:""});
     await loadAll(); showV("dash");
   }catch(e){alert("儲存失敗："+e.message);document.getElementById("bSv").textContent="儲存";}
 }
@@ -585,7 +585,7 @@ function renderDetail(){
       <div style="flex:1">
         <span style="font-weight:700;color:var(--a)">－${t.qty} 件</span>
         <span style="font-size:13px;margin-left:7px">${t.name||""}</span>
-        ${t.operator?`<span style="color:var(--p);font-size:12px;margin-left:7px">👤 ${t.operator}</span>`:""}
+
         ${t.signature_url?`<button onclick="viewSign('${t.id}','toy')" style="background:none;border:none;color:var(--p);font-size:12px;margin-left:7px;cursor:pointer;text-decoration:underline;font-family:inherit;padding:0">✍️ 查看簽名</button>`:""}
         <div style="color:var(--sub);font-size:11px;margin-top:1px">${t.exchange_date}</div>
       </div>
@@ -601,7 +601,7 @@ function renderDetail(){
       <div style="flex:1">
         <span style="font-weight:700;color:${h.tp==="in"?"var(--g)":"var(--a)"}">${h.tp==="in"?"＋":"－"}${h.qty} 罐</span>
         ${h.note?`<span style="color:var(--sub);font-size:12px;margin-left:7px">${h.note}</span>`:""}
-        ${h.operator?`<span style="color:var(--p);font-size:12px;margin-left:7px">👤 ${h.operator}</span>`:""}
+
         ${h.tp==="out"&&h.signature_url?`<button onclick="viewSign('${h.id}','milk')" style="background:none;border:none;color:var(--p);font-size:12px;margin-left:7px;cursor:pointer;text-decoration:underline;font-family:inherit;padding:0">✍️ 查看簽名</button>`:""}
         <div style="color:var(--sub);font-size:11px;margin-top:1px">${h.date}</div>
       </div>
@@ -633,7 +633,7 @@ async function doDeposit(){
 品項：${sel.brand} ${sel.item}
 入庫數量：${q} 罐
 日期：${d}`))return;
-  await api("milk_deposits","POST",{customer_id:sel.id,qty:q,date:d,note:n,operator:currentUser?currentUser.username:""});
+  await api("milk_deposits","POST",{customer_id:sel.id,qty:q,date:d,note:n});
   await loadAll(); sel=custs.find(c=>c.id===sel.id); render(); swT("M");
 }
 
@@ -645,7 +645,7 @@ async function doW(){
   if(!q||q<=0){alert("請輸入正確數量");return;}
   if(q>r){alert(`庫存僅剩 ${r} 罐`);return;}
   if(!confirm(`確認客人取貨？\n\n客人：${sel.name}\n品項：${sel.brand} ${sel.item}\n取出數量：${q} 罐\n取後剩餘：${r-q} 罐`))return;
-  const [rec]=await api("milk_withdrawals","POST",{customer_id:sel.id,qty:q,date:d,note:n,signature_url:"",operator:currentUser?currentUser.username:""});
+  const [rec]=await api("milk_withdrawals","POST",{customer_id:sel.id,qty:q,date:d,note:n,signature_url:""});
   await loadAll(); sel=custs.find(c=>c.id===sel.id); render(); swT("M");
   openQR(rec.id,q,r-q);
 }
@@ -661,7 +661,7 @@ async function doToyOut(){
   if(qty>pts){alert(`積分僅剩 ${pts} 點`);return;}
   if(!confirm(`確認客人取玩具？\n\n客人：${sel.name}\n玩具：${name||"未填寫"}\n取出：${qty} 件\n剩餘積分：${pts-qty} 點`))return;
   await api(`customers?id=eq.${sel.id}`,"PATCH",{toy_points:pts-qty});
-  const [rec]=await api("toy_exchanges","POST",{customer_id:sel.id,name:name||"玩具",qty,exchange_date:d,note:no,signature_url:"",operator:currentUser?currentUser.username:""});
+  const [rec]=await api("toy_exchanges","POST",{customer_id:sel.id,name:name||"玩具",qty,exchange_date:d,note:no,signature_url:""});
   await loadAll(); sel=custs.find(c=>c.id===sel.id); render(); swT("T");
   openToyQR(rec.id,name||"玩具",qty);
 }
