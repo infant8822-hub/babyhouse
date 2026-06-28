@@ -269,7 +269,7 @@ function showAdmin(){
   document.getElementById("loginPage").style.display="none";
   document.getElementById("adminPage").style.display="block";
   document.getElementById("userLabel").textContent="👤 "+currentUser.username;
-  if(currentUser.role==="admin") document.getElementById("navAcc").style.display="inline";
+  document.getElementById("navAcc").style.display=currentUser.role==="admin"?"inline":"none";
   loadAll();
 }
 
@@ -832,8 +832,9 @@ async function confirmOp(){
     });
     const data=await res.json();
     if(!Array.isArray(data)||!data.length){document.getElementById("opErr").textContent="帳號或密碼錯誤";return;}
+    const cb=opCallback, uName=data[0].username;
     closeOpM();
-    if(opCallback) opCallback(data[0].username,p);
+    if(cb) cb(uName,p);
   }catch(e){document.getElementById("opErr").textContent="驗證失敗";}
 }
 
