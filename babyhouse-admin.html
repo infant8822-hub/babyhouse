@@ -773,15 +773,17 @@ async function doLogin(){
   const btn=document.getElementById("loginBtn");
   btn.textContent="驗證中…"; btn.disabled=true;
   try{
-    const res=await api(`staff_accounts?username=eq.${encodeURIComponent(u)}&password=eq.${encodeURIComponent(p)}&select=*`);
-    if(!res||!res.length){alert("帳號或密碼錯誤");btn.textContent="登入";btn.disabled=false;return;}
-    currentUser=res[0];
+    const res=await fetch(SU+"/rest/v1/staff_accounts?username=eq."+encodeURIComponent(u)+"&password=eq."+encodeURIComponent(p)+"&select=*",{
+      headers:{"apikey":SK,"Authorization":"Bearer "+SK}
+    });
+    const data=await res.json();
+    if(!data||!data.length){alert("帳號或密碼錯誤");btn.textContent="登入";btn.disabled=false;return;}
+    currentUser=data[0];
     localStorage.setItem("babyhouse_user",JSON.stringify(currentUser));
-    hideLogin();
-    // 顯示登入者名稱在 header
+    document.getElementById("appWrap").style.display="block";
+    document.getElementById("loginWrap").style.display="none";
     document.getElementById("userLabel").textContent="👤 "+currentUser.username;
     document.getElementById("userLabel").style.display="inline";
-    // 最高權限才顯示帳號管理
     if(currentUser.role==="admin") document.getElementById("navAcc").style.display="inline";
     loadAll();
   }catch(e){alert("登入失敗："+e.message);btn.textContent="登入";btn.disabled=false;}
