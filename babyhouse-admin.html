@@ -244,7 +244,7 @@ async function doLogin(){
       return;
     }
     currentUser=data[0];
-    localStorage.setItem("babyhouse_user",JSON.stringify(currentUser));
+    sessionStorage.setItem("babyhouse_user",JSON.stringify(currentUser));
     showAdmin();
   }catch(e){
     err.textContent="登入失敗："+e.message;
@@ -259,13 +259,19 @@ function showAdmin(){
   document.getElementById("navAcc").style.display=currentUser.role==="admin"?"inline":"none";
   loadAll();
   setupDriveBackup();
+  startIdleTimer();
 }
 
 function doLogout(){
   if(!confirm("確定要登出？"))return;
+  performLogout();
+}
+
+function performLogout(){
+  stopIdleTimer();
   rpc("staff_logout",{p_token:tok()}).catch(()=>{});
   currentUser=null;
-  localStorage.removeItem("babyhouse_user");
+  sessionStorage.removeItem("babyhouse_user");
   document.getElementById("adminPage").style.display="none";
   document.getElementById("loginPage").style.display="flex";
   document.getElementById("li_user").value="";
@@ -274,6 +280,26 @@ function doLogout(){
   document.getElementById("li_btn").textContent="登入";
   document.getElementById("li_btn").disabled=false;
 }
+
+// ── 閒置自動登出（1 小時無動作）────────────────────────────────────
+let idleTimer=null;
+const IDLE_LIMIT_MS=60*60*1000;
+function resetIdleTimer(){
+  if(!currentUser) return;
+  if(idleTimer) clearTimeout(idleTimer);
+  idleTimer=setTimeout(()=>{
+    performLogout();
+    alert("閒置超過 1 小時，已自動登出，請重新登入");
+  },IDLE_LIMIT_MS);
+}
+function startIdleTimer(){
+  resetIdleTimer();
+}
+function stopIdleTimer(){
+  if(idleTimer) clearTimeout(idleTimer);
+  idleTimer=null;
+}
+["click","keydown","mousemove","touchstart","scroll"].forEach(ev=>document.addEventListener(ev,resetIdleTimer,{passive:true}));
 
 // ── 載入資料 ────────────────────────────────────────────────────
 async function loadAll(){
@@ -442,7 +468,10 @@ function renderItems(){
   ${items.length===0?'<div class="empty">尚無品項</div>':
     items.map((item,i)=>`<div style="display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--bd)">
       <span style="font-size:14px">🥛 ${item}</span>
-      <button onclick="removeItem(${i})" style="background:none;border:1px solid var(--r);color:var(--r);border-radius:8px;padding:4px 12px;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit">刪除</button>
+      <div style="display:flex;gap:6px">
+        <button onclick="editItem(${i})" style="background:none;border:1px solid var(--p);color:var(--p);border-radius:8px;padding:4px 12px;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit">編輯</button>
+        <button onclick="removeItem(${i})" style="background:none;border:1px solid var(--r);color:var(--r);border-radius:8px;padding:4px 12px;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit">刪除</button>
+      </div>
     </div>`).join("")
   }
 </div>`;
@@ -459,6 +488,24 @@ function removeItem(idx){
   const items=getItems();
   if(!confirm(`確定要刪除「${items[idx]}」？`))return;
   items.splice(idx,1); saveItems(items); render();
+}
+async function editItem(idx){
+  const items=getItems();
+  const oldName=items[idx];
+  const newName=prompt(`修改品項名稱（會自動更新所有此品項的寄庫客人資料與公告）：`,oldName);
+  if(newName===null) return;
+  const trimmed=newName.trim();
+  if(!trimmed){alert("品項名稱不能為空");return;}
+  if(trimmed===oldName) return;
+  if(items.includes(trimmed)){alert("此品項名稱已存在");return;}
+  if(!confirm(`確定要將「${oldName}」改名為「${trimmed}」？\n\n所有目前品項為「${oldName}」的寄庫客人資料都會一起更新。`))return;
+  try{
+    await rpc("admin_rename_item",{p_token:tok(),p_old:oldName,p_new:trimmed});
+    items[idx]=trimmed; saveItems(items);
+    await loadAll();
+    render();
+    alert("已更新！");
+  }catch(e){alert("更新失敗："+e.message);}
 }
 
 // ── Detail ───────────────────────────────────────────────────────
@@ -990,13 +1037,13 @@ function updateDriveBanner(){
 
 // ── 啟動 ─────────────────────────────────────────────────────────
 window.onload=function(){
-  const saved=localStorage.getItem("babyhouse_user");
+  const saved=sessionStorage.getItem("babyhouse_user");
   if(saved){
     try{
       currentUser=JSON.parse(saved);
       showAdmin();
     }catch{
-      localStorage.removeItem("babyhouse_user");
+      sessionStorage.removeItem("babyhouse_user");
     }
   }
 };
