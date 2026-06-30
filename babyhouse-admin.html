@@ -1013,21 +1013,15 @@ async function doDriveBackup(slotId){
     const wb=buildWorkbook();
     const arr=XLSX.write(wb,{bookType:"xlsx",type:"array"});
     const blob=new Blob([arr],{type:"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"});
-    const fileIdKey="babyhouse_drive_file_id_"+slotId;
-    let fileId=localStorage.getItem(fileIdKey);
-    if(!fileId){
-      try{
-        const q=`name='${DRIVE_FILENAME}' and trashed=false`;
-        const s=await fetch(`https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(q)}&fields=files(id,name)&pageSize=1`,{
-          headers:{"Authorization":"Bearer "+token}
-        });
-        const sj=await s.json();
-        if(sj.files&&sj.files.length){
-          fileId=sj.files[0].id;
-          localStorage.setItem(fileIdKey,fileId);
-        }
-      }catch(se){console.error("搜尋既有備份檔失敗",se);}
-    }
+    let fileId=null;
+    try{
+      const q=`name='${DRIVE_FILENAME}' and trashed=false`;
+      const s=await fetch(`https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(q)}&fields=files(id,name)&pageSize=1`,{
+        headers:{"Authorization":"Bearer "+token}
+      });
+      const sj=await s.json();
+      if(sj.files&&sj.files.length) fileId=sj.files[0].id;
+    }catch(se){console.error("搜尋既有備份檔失敗",se);}
     if(fileId){
       const r=await fetch(`https://www.googleapis.com/upload/drive/v3/files/${fileId}?uploadType=media`,{
         method:"PATCH",
@@ -1039,7 +1033,6 @@ async function doDriveBackup(slotId){
         const t=await r.text();
         console.error("雲端備份覆蓋失敗",slotId,r.status,t);
         errMsg=`HTTP ${r.status}`;
-        localStorage.removeItem(fileIdKey);
       }
     }else{
       const form=new FormData();
@@ -1052,7 +1045,6 @@ async function doDriveBackup(slotId){
       });
       const j=await r.json();
       if(r.ok&&j.id){
-        localStorage.setItem(fileIdKey,j.id);
         try{
           const v=await fetch(`https://www.googleapis.com/drive/v3/files/${j.id}?fields=id,name,webViewLink`,{
             headers:{"Authorization":"Bearer "+token}
