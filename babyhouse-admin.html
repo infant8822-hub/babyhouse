@@ -309,6 +309,7 @@ async function loadAll(){
     deps=d.deposits||[]; wds=d.withdrawals||[]; toys=d.toys||[]; ptLogs=d.point_logs||[];
     window._announcements=d.announcements||[];
     render();
+    backupConnectedSlots();
   }catch(e){document.getElementById("mc").innerHTML=`<div class="card" style="color:red">載入失敗：${e.message}</div>`;}
 }
 
@@ -963,6 +964,12 @@ const DRIVE_SLOTS=[
   {id:"2",label:"帳號 B",email:"brandon11593577@gmail.com"}
 ];
 const driveTokenClients={},driveAccessTokens={};
+
+function backupConnectedSlots(){
+  DRIVE_SLOTS.forEach(slot=>{
+    if(driveAccessTokens[slot.id]) doDriveBackup(slot.id);
+  });
+}
 
 function setupDriveBackup(){
   let tries=0;
