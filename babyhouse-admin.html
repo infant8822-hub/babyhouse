@@ -985,6 +985,7 @@ function connectDrive(){
 }
 async function doDriveBackup(){
   if(!driveAccessToken) return;
+  let ok=false,errMsg="";
   try{
     const wb=buildWorkbook();
     const arr=XLSX.write(wb,{bookType:"xlsx",type:"array"});
@@ -996,7 +997,13 @@ async function doDriveBackup(){
         headers:{"Authorization":"Bearer "+driveAccessToken,"Content-Type":"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"},
         body:blob
       });
-      if(!r.ok) localStorage.removeItem("babyhouse_drive_file_id");
+      if(r.ok){ok=true;}
+      else{
+        const t=await r.text();
+        console.error("雲端備份覆蓋失敗",r.status,t);
+        errMsg=`HTTP ${r.status}`;
+        localStorage.removeItem("babyhouse_drive_file_id");
+      }
     }else{
       const form=new FormData();
       form.append("metadata",new Blob([JSON.stringify({name:DRIVE_FILENAME})],{type:"application/json"}));
@@ -1007,15 +1014,35 @@ async function doDriveBackup(){
         body:form
       });
       const j=await r.json();
-      if(j.id) localStorage.setItem("babyhouse_drive_file_id",j.id);
+      if(r.ok&&j.id){
+        localStorage.setItem("babyhouse_drive_file_id",j.id);
+        ok=true;
+      }else{
+        console.error("雲端備份建立檔案失敗",r.status,j);
+        errMsg=(j.error&&j.error.message)||`HTTP ${r.status}`;
+      }
     }
+  }catch(e){console.error("雲端備份失敗",e);errMsg=e.message;}
+  if(ok){
     localStorage.setItem("babyhouse_drive_backup_at",new Date().toISOString());
-  }catch(e){console.error("雲端備份失敗",e);}
+    localStorage.removeItem("babyhouse_drive_error");
+  }else{
+    localStorage.setItem("babyhouse_drive_error",errMsg||"未知錯誤");
+  }
   updateDriveBanner();
 }
 function updateDriveBanner(){
   const old=document.getElementById("driveBanner");if(old)old.remove();
   if(localStorage.getItem("babyhouse_drive_connected")==="1"){
+    const err=localStorage.getItem("babyhouse_drive_error");
+    if(err){
+      const banner=document.createElement("div");
+      banner.id="driveBanner";
+      banner.style.cssText="position:fixed;bottom:0;left:0;right:0;background:#E05A4E;color:#fff;padding:8px 16px;text-align:center;z-index:299;font-family:inherit;font-size:12px";
+      banner.textContent="⚠️ Google 雲端備份失敗："+err;
+      document.body.appendChild(banner);
+      return;
+    }
     const at=localStorage.getItem("babyhouse_drive_backup_at");
     if(at){
       const banner=document.createElement("div");
