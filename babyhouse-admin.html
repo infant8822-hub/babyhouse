@@ -1086,8 +1086,9 @@ function renderDriveStatus(){
     const at=localStorage.getItem("babyhouse_drive_backup_at_"+slot.id);
     const link=localStorage.getItem("babyhouse_drive_link_"+slot.id);
     let status;
-    if(!connected) status=`<button onclick="connectDrive('${slot.id}')" style="background:var(--p);color:#fff;border:none;border-radius:6px;padding:4px 10px;font-size:12px;cursor:pointer;font-family:inherit">連接</button>`;
-    else if(err) status=`<span style="color:var(--r)">⚠️ 備份失敗：${err}</span>`;
+    const connectBtn=`<button onclick="connectDrive('${slot.id}')" style="background:var(--p);color:#fff;border:none;border-radius:6px;padding:4px 10px;font-size:12px;cursor:pointer;font-family:inherit">連接</button>`;
+    if(!connected) status=connectBtn;
+    else if(err) status=`<span style="color:var(--r)">⚠️ ${err}</span> ${connectBtn}`;
     else if(at) status=`<span style="color:var(--g)">☁️ 已備份（${new Date(at).toLocaleString("zh-TW")}）</span>${link?` <a href="${link}" target="_blank" style="color:var(--p)">查看</a>`:""}`;
     else status=`<span style="color:var(--sub)">備份中…</span>`;
     return `<div style="display:flex;align-items:center;justify-content:space-between;padding:6px 16px;gap:10px"><span style="font-weight:700;color:var(--sub)">${slot.label}</span><span style="flex:1;text-align:right">${status}</span></div>`;
