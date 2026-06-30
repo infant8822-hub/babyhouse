@@ -1002,7 +1002,20 @@ async function doDriveBackup(slotId){
     const arr=XLSX.write(wb,{bookType:"xlsx",type:"array"});
     const blob=new Blob([arr],{type:"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"});
     const fileIdKey="babyhouse_drive_file_id_"+slotId;
-    const fileId=localStorage.getItem(fileIdKey);
+    let fileId=localStorage.getItem(fileIdKey);
+    if(!fileId){
+      try{
+        const q=`name='${DRIVE_FILENAME}' and trashed=false`;
+        const s=await fetch(`https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(q)}&fields=files(id,name)&pageSize=1`,{
+          headers:{"Authorization":"Bearer "+token}
+        });
+        const sj=await s.json();
+        if(sj.files&&sj.files.length){
+          fileId=sj.files[0].id;
+          localStorage.setItem(fileIdKey,fileId);
+        }
+      }catch(se){console.error("搜尋既有備份檔失敗",se);}
+    }
     if(fileId){
       const r=await fetch(`https://www.googleapis.com/upload/drive/v3/files/${fileId}?uploadType=media`,{
         method:"PATCH",
