@@ -1016,6 +1016,14 @@ async function doDriveBackup(){
       const j=await r.json();
       if(r.ok&&j.id){
         localStorage.setItem("babyhouse_drive_file_id",j.id);
+        try{
+          const v=await fetch(`https://www.googleapis.com/drive/v3/files/${j.id}?fields=id,name,webViewLink,trashed,owners`,{
+            headers:{"Authorization":"Bearer "+driveAccessToken}
+          });
+          const vj=await v.json();
+          console.log("雲端備份檔案驗證",vj);
+          localStorage.setItem("babyhouse_drive_link",vj.webViewLink||"");
+        }catch(ve){console.error("驗證檔案失敗",ve);}
         ok=true;
       }else{
         console.error("雲端備份建立檔案失敗",r.status,j);
@@ -1044,13 +1052,13 @@ function updateDriveBanner(){
       return;
     }
     const at=localStorage.getItem("babyhouse_drive_backup_at");
+    const link=localStorage.getItem("babyhouse_drive_link");
     if(at){
       const banner=document.createElement("div");
       banner.id="driveBanner";
       banner.style.cssText="position:fixed;bottom:0;left:0;right:0;background:#4CAF82;color:#fff;padding:8px 16px;text-align:center;z-index:299;font-family:inherit;font-size:12px";
-      banner.textContent="☁️ 已自動備份到 Google 雲端（"+new Date(at).toLocaleString("zh-TW")+"）";
+      banner.innerHTML="☁️ 已自動備份到 Google 雲端（"+new Date(at).toLocaleString("zh-TW")+"）"+(link?` <a href="${link}" target="_blank" style="color:#fff;text-decoration:underline">點此查看檔案</a>`:"");
       document.body.appendChild(banner);
-      setTimeout(()=>{const b=document.getElementById("driveBanner");if(b)b.remove();},4000);
     }
     return;
   }
