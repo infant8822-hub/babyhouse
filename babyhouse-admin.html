@@ -958,7 +958,10 @@ function exportExcel(){
 const GOOGLE_CLIENT_ID="158287480738-avb3r74sc6g0erlcejr4e3l2kvp3378q.apps.googleusercontent.com";
 const DRIVE_SCOPE="https://www.googleapis.com/auth/drive.file";
 const DRIVE_FILENAME="嬰之房寄庫紀錄備份.xlsx";
-const DRIVE_SLOTS=[{id:"1",label:"帳號 A"},{id:"2",label:"帳號 B"}];
+const DRIVE_SLOTS=[
+  {id:"1",label:"帳號 A",email:"infant8822@gmail.com"},
+  {id:"2",label:"帳號 B",email:"brandon11593577@gmail.com"}
+];
 const driveTokenClients={},driveAccessTokens={};
 
 function setupDriveBackup(){
@@ -969,6 +972,7 @@ function setupDriveBackup(){
         driveTokenClients[slot.id]=google.accounts.oauth2.initTokenClient({
           client_id:GOOGLE_CLIENT_ID,
           scope:DRIVE_SCOPE,
+          hint:slot.email,
           callback:(resp)=>{
             if(resp&&resp.access_token){
               driveAccessTokens[slot.id]=resp.access_token;
@@ -978,7 +982,7 @@ function setupDriveBackup(){
           }
         });
         if(localStorage.getItem("babyhouse_drive_connected_"+slot.id)==="1"){
-          try{driveTokenClients[slot.id].requestAccessToken({prompt:""});}catch{}
+          try{driveTokenClients[slot.id].requestAccessToken({prompt:"",hint:slot.email});}catch{}
         }
       });
       renderDriveStatus();
@@ -991,7 +995,8 @@ function setupDriveBackup(){
 function connectDrive(slotId){
   const c=driveTokenClients[slotId];
   if(!c){alert("Google 服務載入中，請稍後再試");return;}
-  c.requestAccessToken({prompt:"consent"});
+  const slot=DRIVE_SLOTS.find(s=>s.id===slotId);
+  c.requestAccessToken({prompt:"consent",hint:slot&&slot.email});
 }
 async function doDriveBackup(slotId){
   const token=driveAccessTokens[slotId];
