@@ -948,61 +948,67 @@ function exportExcel(){
   XLSX.writeFile(buildWorkbook(),`嬰之房寄庫紀錄_${today()}.xlsx`);
 }
 
-// ── Google 雲端自動備份 ───────────────────────────────────────────
+// ── Google 雲端自動備份（可同時連兩個帳號）──────────────────────────
 const GOOGLE_CLIENT_ID="158287480738-avb3r74sc6g0erlcejr4e3l2kvp3378q.apps.googleusercontent.com";
 const DRIVE_SCOPE="https://www.googleapis.com/auth/drive.file";
 const DRIVE_FILENAME="嬰之房寄庫紀錄備份.xlsx";
-let driveTokenClient=null,driveAccessToken=null;
+const DRIVE_SLOTS=[{id:"1",label:"帳號 A"},{id:"2",label:"帳號 B"}];
+const driveTokenClients={},driveAccessTokens={};
 
 function setupDriveBackup(){
   let tries=0;
   const tryInit=()=>{
     if(window.google&&google.accounts&&google.accounts.oauth2){
-      driveTokenClient=google.accounts.oauth2.initTokenClient({
-        client_id:GOOGLE_CLIENT_ID,
-        scope:DRIVE_SCOPE,
-        callback:(resp)=>{
-          if(resp&&resp.access_token){
-            driveAccessToken=resp.access_token;
-            localStorage.setItem("babyhouse_drive_connected","1");
-            doDriveBackup();
+      DRIVE_SLOTS.forEach(slot=>{
+        driveTokenClients[slot.id]=google.accounts.oauth2.initTokenClient({
+          client_id:GOOGLE_CLIENT_ID,
+          scope:DRIVE_SCOPE,
+          callback:(resp)=>{
+            if(resp&&resp.access_token){
+              driveAccessTokens[slot.id]=resp.access_token;
+              localStorage.setItem("babyhouse_drive_connected_"+slot.id,"1");
+              doDriveBackup(slot.id);
+            }
           }
+        });
+        if(localStorage.getItem("babyhouse_drive_connected_"+slot.id)==="1"){
+          try{driveTokenClients[slot.id].requestAccessToken({prompt:""});}catch{}
         }
       });
-      if(localStorage.getItem("babyhouse_drive_connected")==="1"){
-        try{driveTokenClient.requestAccessToken({prompt:""});}catch{}
-      }
-      updateDriveBanner();
+      renderDriveStatus();
     }else if(tries<25){
       tries++; setTimeout(tryInit,200);
     }
   };
   tryInit();
 }
-function connectDrive(){
-  if(!driveTokenClient){alert("Google 服務載入中，請稍後再試");return;}
-  driveTokenClient.requestAccessToken({prompt:"consent"});
+function connectDrive(slotId){
+  const c=driveTokenClients[slotId];
+  if(!c){alert("Google 服務載入中，請稍後再試");return;}
+  c.requestAccessToken({prompt:"consent"});
 }
-async function doDriveBackup(){
-  if(!driveAccessToken) return;
+async function doDriveBackup(slotId){
+  const token=driveAccessTokens[slotId];
+  if(!token) return;
   let ok=false,errMsg="";
   try{
     const wb=buildWorkbook();
     const arr=XLSX.write(wb,{bookType:"xlsx",type:"array"});
     const blob=new Blob([arr],{type:"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"});
-    const fileId=localStorage.getItem("babyhouse_drive_file_id");
+    const fileIdKey="babyhouse_drive_file_id_"+slotId;
+    const fileId=localStorage.getItem(fileIdKey);
     if(fileId){
       const r=await fetch(`https://www.googleapis.com/upload/drive/v3/files/${fileId}?uploadType=media`,{
         method:"PATCH",
-        headers:{"Authorization":"Bearer "+driveAccessToken,"Content-Type":"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"},
+        headers:{"Authorization":"Bearer "+token,"Content-Type":"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"},
         body:blob
       });
       if(r.ok){ok=true;}
       else{
         const t=await r.text();
-        console.error("雲端備份覆蓋失敗",r.status,t);
+        console.error("雲端備份覆蓋失敗",slotId,r.status,t);
         errMsg=`HTTP ${r.status}`;
-        localStorage.removeItem("babyhouse_drive_file_id");
+        localStorage.removeItem(fileIdKey);
       }
     }else{
       const form=new FormData();
@@ -1010,63 +1016,51 @@ async function doDriveBackup(){
       form.append("file",blob);
       const r=await fetch("https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart",{
         method:"POST",
-        headers:{"Authorization":"Bearer "+driveAccessToken},
+        headers:{"Authorization":"Bearer "+token},
         body:form
       });
       const j=await r.json();
       if(r.ok&&j.id){
-        localStorage.setItem("babyhouse_drive_file_id",j.id);
+        localStorage.setItem(fileIdKey,j.id);
         try{
-          const v=await fetch(`https://www.googleapis.com/drive/v3/files/${j.id}?fields=id,name,webViewLink,trashed,owners`,{
-            headers:{"Authorization":"Bearer "+driveAccessToken}
+          const v=await fetch(`https://www.googleapis.com/drive/v3/files/${j.id}?fields=id,name,webViewLink`,{
+            headers:{"Authorization":"Bearer "+token}
           });
           const vj=await v.json();
-          console.log("雲端備份檔案驗證",vj);
-          localStorage.setItem("babyhouse_drive_link",vj.webViewLink||"");
+          localStorage.setItem("babyhouse_drive_link_"+slotId,vj.webViewLink||"");
         }catch(ve){console.error("驗證檔案失敗",ve);}
         ok=true;
       }else{
-        console.error("雲端備份建立檔案失敗",r.status,j);
+        console.error("雲端備份建立檔案失敗",slotId,r.status,j);
         errMsg=(j.error&&j.error.message)||`HTTP ${r.status}`;
       }
     }
-  }catch(e){console.error("雲端備份失敗",e);errMsg=e.message;}
+  }catch(e){console.error("雲端備份失敗",slotId,e);errMsg=e.message;}
   if(ok){
-    localStorage.setItem("babyhouse_drive_backup_at",new Date().toISOString());
-    localStorage.removeItem("babyhouse_drive_error");
+    localStorage.setItem("babyhouse_drive_backup_at_"+slotId,new Date().toISOString());
+    localStorage.removeItem("babyhouse_drive_error_"+slotId);
   }else{
-    localStorage.setItem("babyhouse_drive_error",errMsg||"未知錯誤");
+    localStorage.setItem("babyhouse_drive_error_"+slotId,errMsg||"未知錯誤");
   }
-  updateDriveBanner();
+  renderDriveStatus();
 }
-function updateDriveBanner(){
+function renderDriveStatus(){
   const old=document.getElementById("driveBanner");if(old)old.remove();
-  if(localStorage.getItem("babyhouse_drive_connected")==="1"){
-    const err=localStorage.getItem("babyhouse_drive_error");
-    if(err){
-      const banner=document.createElement("div");
-      banner.id="driveBanner";
-      banner.style.cssText="position:fixed;bottom:0;left:0;right:0;background:#E05A4E;color:#fff;padding:8px 16px;text-align:center;z-index:299;font-family:inherit;font-size:12px";
-      banner.textContent="⚠️ Google 雲端備份失敗："+err;
-      document.body.appendChild(banner);
-      return;
-    }
-    const at=localStorage.getItem("babyhouse_drive_backup_at");
-    const link=localStorage.getItem("babyhouse_drive_link");
-    if(at){
-      const banner=document.createElement("div");
-      banner.id="driveBanner";
-      banner.style.cssText="position:fixed;bottom:0;left:0;right:0;background:#4CAF82;color:#fff;padding:8px 16px;text-align:center;z-index:299;font-family:inherit;font-size:12px";
-      banner.innerHTML="☁️ 已自動備份到 Google 雲端（"+new Date(at).toLocaleString("zh-TW")+"）"+(link?` <a href="${link}" target="_blank" style="color:#fff;text-decoration:underline">點此查看檔案</a>`:"");
-      document.body.appendChild(banner);
-    }
-    return;
-  }
   const banner=document.createElement("div");
   banner.id="driveBanner";
-  banner.style.cssText="position:fixed;bottom:0;left:0;right:0;background:#3D7EAA;color:#fff;padding:12px 16px;display:flex;align-items:center;justify-content:space-between;z-index:299;font-family:inherit;box-shadow:0 -2px 10px rgba(0,0,0,0.15)";
-  banner.innerHTML=`<div style="font-size:13px">☁️ <b>尚未連接 Google 雲端自動備份</b></div>
-    <button onclick="connectDrive()" style="background:#fff;color:#3D7EAA;border:none;border-radius:8px;padding:7px 14px;font-weight:700;font-size:13px;cursor:pointer;font-family:inherit;flex-shrink:0;margin-left:12px">連接</button>`;
+  banner.style.cssText="position:fixed;bottom:0;left:0;right:0;background:#fff;border-top:1px solid var(--bd);z-index:299;font-family:inherit;box-shadow:0 -2px 10px rgba(0,0,0,0.1);font-size:12px";
+  banner.innerHTML=DRIVE_SLOTS.map(slot=>{
+    const connected=localStorage.getItem("babyhouse_drive_connected_"+slot.id)==="1";
+    const err=localStorage.getItem("babyhouse_drive_error_"+slot.id);
+    const at=localStorage.getItem("babyhouse_drive_backup_at_"+slot.id);
+    const link=localStorage.getItem("babyhouse_drive_link_"+slot.id);
+    let status;
+    if(!connected) status=`<button onclick="connectDrive('${slot.id}')" style="background:var(--p);color:#fff;border:none;border-radius:6px;padding:4px 10px;font-size:12px;cursor:pointer;font-family:inherit">連接</button>`;
+    else if(err) status=`<span style="color:var(--r)">⚠️ 備份失敗：${err}</span>`;
+    else if(at) status=`<span style="color:var(--g)">☁️ 已備份（${new Date(at).toLocaleString("zh-TW")}）</span>${link?` <a href="${link}" target="_blank" style="color:var(--p)">查看</a>`:""}`;
+    else status=`<span style="color:var(--sub)">備份中…</span>`;
+    return `<div style="display:flex;align-items:center;justify-content:space-between;padding:6px 16px;gap:10px"><span style="font-weight:700;color:var(--sub)">${slot.label}</span><span style="flex:1;text-align:right">${status}</span></div>`;
+  }).join("");
   document.body.appendChild(banner);
 }
 
