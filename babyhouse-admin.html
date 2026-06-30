@@ -989,7 +989,15 @@ function setupDriveBackup(){
           }
         });
         if(localStorage.getItem("babyhouse_drive_connected_"+slot.id)==="1"){
-          try{driveTokenClients[slot.id].requestAccessToken({prompt:"",hint:slot.email});}catch{}
+          try{
+            driveTokenClients[slot.id].requestAccessToken({prompt:"",hint:slot.email});
+            setTimeout(()=>{
+              if(!driveAccessTokens[slot.id]){
+                localStorage.setItem("babyhouse_drive_error_"+slot.id,"需要重新連接");
+                renderDriveStatus();
+              }
+            },4000);
+          }catch{}
         }
       });
       renderDriveStatus();
