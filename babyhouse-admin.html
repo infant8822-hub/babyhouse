@@ -252,12 +252,12 @@ async function doLogin(){
   }
 }
 
-function showAdmin(){
+async function showAdmin(){
   document.getElementById("loginPage").style.display="none";
   document.getElementById("adminPage").style.display="block";
   document.getElementById("userLabel").textContent="👤 "+currentUser.username;
   document.getElementById("navAcc").style.display=currentUser.role==="admin"?"inline":"none";
-  loadAll();
+  await loadAll();
   setupDriveBackup();
   startIdleTimer();
 }

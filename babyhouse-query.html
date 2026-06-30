@@ -69,6 +69,7 @@ async function doSearch(){
   document.getElementById("result").innerHTML='<div style="text-align:center;padding:20px;color:#6B7280">查詢中…</div>';
   try{
     const res=await fetch(`${SUPA_URL}/rest/v1/rpc/public_customer_lookup`,{method:"POST",headers:{...h,"Content-Type":"application/json"},body:JSON.stringify({p_phone:raw})});
+    if(!res.ok) throw new Error("查詢失敗");
     const c=await res.json();
     if(!c){
       document.getElementById("result").innerHTML='<div class="not-found">查無此電話的寄庫紀錄<br><span style="font-size:13px;font-weight:400;margin-top:4px;display:block">請洽詢店員，謝謝 🙏</span></div>';

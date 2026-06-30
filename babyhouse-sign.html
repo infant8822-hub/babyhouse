@@ -113,11 +113,12 @@ async function sub(){
   btn.textContent="送出中…"; btn.disabled=true;
   const du=cv.toDataURL("image/png");
   try{
-    await fetch(SU+"/rest/v1/rpc/public_submit_signature",{
+    const r=await fetch(SU+"/rest/v1/rpc/public_submit_signature",{
       method:"POST",
       headers:H,
       body:JSON.stringify({p_id:recId,p_type:type,p_signature:du})
     });
+    if(!r.ok) throw new Error("送出失敗");
     document.getElementById("sc").innerHTML=`
 <div class="sw">
   <div class="si">✅</div>
